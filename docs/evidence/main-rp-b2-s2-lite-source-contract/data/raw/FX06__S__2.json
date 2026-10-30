@@ -1,0 +1,46 @@
+{
+ "id": "FX06",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크가 6~9번째 장작을 차례로 쌓음. 렌이 오늘부터 연인이 되자고 제안하자 라이크는 놀라 한참 침묵한 뒤 손을 맞잡아 응함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":10,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1995,
+  "outputTokens": 112,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1993,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000049,
+  "upstreamCostUsd": 0.000049,
+  "debugRawUsage": {
+   "completion_tokens": 112,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1995,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1993
+   },
+   "total_tokens": 2107,
+   "cost": 0.000049,
+   "cost_details": {
+    "upstream_inference_cost": 0.000049
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "f443c728-635e-4b96-9d26-52bbb44f391c"
+ },
+ "billedUsd": 0.000049,
+ "ms": 4416,
+ "systemChars": 3460,
+ "userChars": 620
+}

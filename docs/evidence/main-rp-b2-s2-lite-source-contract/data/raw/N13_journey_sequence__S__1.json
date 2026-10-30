@@ -1,0 +1,46 @@
+{
+ "id": "N13_journey_sequence",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌과 라이크는 함께 시장에서 며칠치 식량, 횃불 심지, 낡은 칼집 끈을 마련함. 라이크는 식량값을 내고 짐을 나눠 들겠다고 했으며, 렌이 자루를 넘기자 받아 여관까지 운반함. 렌은 저녁을 서린에게 묻기로 하고 여관에서 직접 남은 음식을 물었으며, 서린은 수프를 데워 주겠다고 함. 라이크는 사 온 빵을 어디 둘지 확인하고 자루를 카운터 옆에 내려놓음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"무거운 건 나눠 들지.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"그의 대답은 짧았지만, 시선은 렌에게 필요한 물건이 빠지지 않았는지 다시 향했다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"짐은 바꿔 들 수 있다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"좋아, 잠깐 맡아 줘.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"남은 수프는 있어. 데워 줄게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"빵은 여기 두면 되나?\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2954,
+  "outputTokens": 404,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2952,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00015,
+  "upstreamCostUsd": 0.00015,
+  "debugRawUsage": {
+   "completion_tokens": 404,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2954,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2952
+   },
+   "total_tokens": 3358,
+   "cost": 0.00015,
+   "cost_details": {
+    "upstream_inference_cost": 0.00015
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "331b1253-1ca9-4566-8aca-4b759941f1f4"
+ },
+ "billedUsd": 0.00015,
+ "ms": 5390,
+ "systemChars": 3460,
+ "userChars": 2030
+}

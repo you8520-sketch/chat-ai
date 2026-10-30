@@ -1,0 +1,46 @@
+{
+ "id": "N21_user_friend_mention",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌은 옛 용병단 동료 도윤이 남쪽에 있으며 곧 편지가 올 거라고 라이크에게 알림. 말 많고 사람을 잘 웃기는 인물이라는 설명에 라이크는 직접 만나 판단하고 싶다고 했고, 렌은 도윤이 오면 먼저 소개하겠다고 함. 편지와 방문은 아직 확정되지 않았으며, 렌은 편지가 오면 알려 주기로 함. 라이크는 이를 재촉하지 않고 도윤의 안부와 남쪽 소식을 궁금해하며 렌의 이야기를 가볍게 넘기지 않는 태도를 보임.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"지금은 남쪽에 있는데, 곧 편지가 올 거야.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"그 친구를 만나 보고 싶다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"도윤이 오면 너한테 먼저 소개할게.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"편지가 오면 알려 줄게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"도윤이 남쪽에서 무사한지도 알 수 있겠군.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2878,
+  "outputTokens": 351,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2876,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000347,
+  "upstreamCostUsd": 0.000347,
+  "debugRawUsage": {
+   "completion_tokens": 351,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2878,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2876,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3229,
+   "cost": 0.000347,
+   "cost_details": {
+    "upstream_inference_cost": 0.000347
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "e456acf8-c9bd-4de5-9609-0d112e86971d"
+ },
+ "billedUsd": 0.000347,
+ "ms": 4391,
+ "systemChars": 3460,
+ "userChars": 2005
+}

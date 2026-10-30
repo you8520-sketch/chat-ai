@@ -1,0 +1,46 @@
+{
+ "id": "N17_cancel_promise",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 검을 갈아 주겠다는 제안을 철회하고 직접 갈겠다고 하자, 라이크는 아쉬움을 잠깐 보였지만 검집을 건네며 선택을 존중함. 렌이 손에 익어서라며 기다릴 필요 없다고 설명하자 라이크는 다치지 말라고 당부했고, 숫돌과 물이 있는 곳만 알려 주며 이유를 캐묻지 않음. 렌은 검을 정리한 뒤 해 지기 전에 마을을 떠나자고 제안했고 라이크는 동의함. 방값은 이미 냈고 렌은 검만 정리하면 된다고 확인했으며, 라이크는 챙길 것이 거의 없다며 문가에서 기다림. 두 사람은 함께 마을을 떠날 준비 중임.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"내가 직접 갈게.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"다치지만 마.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"물은 옆에 있어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"오늘 해 지기 전에 마을을 떠나자.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"좋아.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"천천히 해.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2723,
+  "outputTokens": 398,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2721,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00035,
+  "upstreamCostUsd": 0.00035,
+  "debugRawUsage": {
+   "completion_tokens": 398,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2723,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2721,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3121,
+   "cost": 0.00035,
+   "cost_details": {
+    "upstream_inference_cost": 0.00035
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "fdc509fe-47e6-4d80-ae32-013342ef332a"
+ },
+ "billedUsd": 0.00035,
+ "ms": 6202,
+ "systemChars": 3460,
+ "userChars": 1708
+}

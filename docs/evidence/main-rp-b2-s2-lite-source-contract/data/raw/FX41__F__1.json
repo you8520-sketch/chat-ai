@@ -1,0 +1,46 @@
+{
+ "id": "FX41",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌이 잡담을 이어가자 라이크는 매번 장작을 하나씩 더 쌓아, 총 45번째 장작에 이름.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 36,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000021,
+  "upstreamCostUsd": 0.000021,
+  "debugRawUsage": {
+   "completion_tokens": 36,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1548
+   },
+   "total_tokens": 1586,
+   "cost": 0.000021,
+   "cost_details": {
+    "upstream_inference_cost": 0.000021
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "44d7f56c-8cda-4a4a-9c55-7789955b5cbd"
+ },
+ "billedUsd": 0.000021,
+ "ms": 1722,
+ "systemChars": 2503,
+ "userChars": 584
+}

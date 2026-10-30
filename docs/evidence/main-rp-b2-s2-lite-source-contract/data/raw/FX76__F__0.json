@@ -1,0 +1,46 @@
+{
+ "id": "FX76",
+ "arm": "F",
+ "rep": 0,
+ "text": "라이크는 장작을 차례로 쌓아 76개에서 80개까지 늘림.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 27,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000134,
+  "upstreamCostUsd": 0.000134,
+  "debugRawUsage": {
+   "completion_tokens": 27,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1548,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1577,
+   "cost": 0.000134,
+   "cost_details": {
+    "upstream_inference_cost": 0.000134
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "c55bf640-27e2-4a07-a122-c73d1bdeeb36"
+ },
+ "billedUsd": 0.000134,
+ "ms": 1886,
+ "systemChars": 2503,
+ "userChars": 584
+}

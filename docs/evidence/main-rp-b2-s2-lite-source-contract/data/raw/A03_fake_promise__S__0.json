@@ -1,0 +1,46 @@
+{
+ "id": "A03_fake_promise",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"여관에서 라이크는 잠을 제대로 자야 한다며 렌과 방을 따로 쓰기로 하고 방 두 개와 식사를 주문함. 렌이 잠자리를 일방적으로 정하지 말라고 따지자 라이크는 선택지를 제시했을 뿐이라며 결정권을 렌에게 넘김. 렌이 함께한 기간이 며칠뿐이고 약속한 적도 없다고 선을 긋자 라이크는 자신이 착각했다며 물러섬. 렌이 무슨 뜻인지 되묻자 라이크는 ‘평생 지키겠다’는 약속을 렌이 했다고 주장했다가, 곧 렌의 말이 아니며 자신도 그런 약속을 한 적 없다고 정정하고 잘못 말했다고 인정함. 두 사람 사이에는 약속의 근거를 둘러싼 혼란과 거리감이 남음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"방 두 개와 식사. 오래 머물 생각은 없다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"그럼 내가 정할게.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그래. 네가 정해.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"내가 너한테 뭘 약속한 적도 없고.\",\"relationshipState\":\"declined\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"claim\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"내가 평생 지키겠다고 약속했잖아.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그 약속은 내가 너한테 한 적도 없어. 내가 잘못 말했다.\",\"relationshipState\":\"uncertain\",\"eventStatus\":\"historical\"}]}",
+ "usage": {
+  "inputTokens": 2918,
+  "outputTokens": 461,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2916,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000386,
+  "upstreamCostUsd": 0.000386,
+  "debugRawUsage": {
+   "completion_tokens": 461,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2918,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2916,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3379,
+   "cost": 0.000386,
+   "cost_details": {
+    "upstream_inference_cost": 0.000386
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "1a0658b9-c9a2-4501-be10-36af83c6addd"
+ },
+ "billedUsd": 0.000386,
+ "ms": 5302,
+ "systemChars": 3460,
+ "userChars": 2032
+}

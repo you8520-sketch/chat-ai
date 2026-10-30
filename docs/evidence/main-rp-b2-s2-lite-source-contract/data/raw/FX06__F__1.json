@@ -1,0 +1,46 @@
+{
+ "id": "FX06",
+ "arm": "F",
+ "rep": 1,
+ "text": "연인 제안을 받은 라이크는 놀라 한동안 침묵하다가 렌의 손을 맞잡음. 두 사람은 오늘부터 연인이 되기로 함.",
+ "usage": {
+  "inputTokens": 1559,
+  "outputTokens": 41,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1557,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000023,
+  "upstreamCostUsd": 0.000023,
+  "debugRawUsage": {
+   "completion_tokens": 41,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1559,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1557
+   },
+   "total_tokens": 1600,
+   "cost": 0.000023,
+   "cost_details": {
+    "upstream_inference_cost": 0.000023
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "f3ed76ba-343e-4ca1-8744-da03f6eb7b96"
+ },
+ "billedUsd": 0.000023,
+ "ms": 2419,
+ "systemChars": 2503,
+ "userChars": 587
+}

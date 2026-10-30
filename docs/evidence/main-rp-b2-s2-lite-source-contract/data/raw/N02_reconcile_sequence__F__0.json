@@ -1,0 +1,46 @@
+{
+ "id": "N02_reconcile_sequence",
+ "arm": "F",
+ "rep": 0,
+ "text": "전날 서로의 말을 끊고 다툰 뒤, 렌은 여관에서 먼저 사과하고 라이크가 괜찮아질 때까지 기다리겠다고 함. 라이크는 사과를 들었지만 아직 일을 정리 중이라며 즉시 화해를 서두르지 않았고, 렌은 재촉하지 않은 채 오늘 갈 길을 정하자고 제안함. 식사 중 라이크가 북쪽 길을 제시하자 렌이 동의하고, 서로 상대의 말을 듣겠다고 약속함. 둘은 서린의 배웅을 받고 여관을 떠나 나란히 북쪽으로 향함. 라이크는 아직 완전히 잊지는 않았으나 사과를 받아들였다고 밝혔고, 렌은 걸음을 맞춤. 침묵은 날 선 대치에서 함께 길을 살피는 것으로 바뀜.",
+ "usage": {
+  "inputTokens": 2582,
+  "outputTokens": 198,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2580,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000274,
+  "upstreamCostUsd": 0.000274,
+  "debugRawUsage": {
+   "completion_tokens": 198,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2582,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2580,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2780,
+   "cost": 0.000274,
+   "cost_details": {
+    "upstream_inference_cost": 0.000274
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "6a7c6795-4878-4c06-a52b-e5ddadba22f8"
+ },
+ "billedUsd": 0.000274,
+ "ms": 3808,
+ "systemChars": 2503,
+ "userChars": 2126
+}

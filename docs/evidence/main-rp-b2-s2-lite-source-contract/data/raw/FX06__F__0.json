@@ -1,0 +1,46 @@
+{
+ "id": "FX06",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌과 라이크는 잡담을 나누며 라이크가 차례로 장작을 쌓음. 렌이 “오늘부터 연인하자”고 제안하자 라이크는 놀라 한동안 말이 없었으나 렌과 손을 맞잡아 연인 관계를 시작함.",
+ "usage": {
+  "inputTokens": 1559,
+  "outputTokens": 71,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1557,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000149,
+  "upstreamCostUsd": 0.000149,
+  "debugRawUsage": {
+   "completion_tokens": 71,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1559,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1557,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1630,
+   "cost": 0.000149,
+   "cost_details": {
+    "upstream_inference_cost": 0.000149
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "08a68d35-2fe8-4934-8a5a-51c9557214ea"
+ },
+ "billedUsd": 0.000149,
+ "ms": 3624,
+ "systemChars": 2503,
+ "userChars": 587
+}

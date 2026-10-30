@@ -1,0 +1,46 @@
+{
+ "id": "N22_banter",
+ "arm": "F",
+ "rep": 0,
+ "text": "험한 길에서 렌이 돌부리와 진흙을 농담거리로 삼자, 라이크는 돌을 치우고 보폭을 늦춰 렌과 나란히 걸음. 렌의 “칼로 협상하지 뭐. 네가 옆에서 증인만 서 줘”라는 농담에 라이크는 드물게 웃으며 받아쳤고, 렌이 웃음을 목격했다고 놀리자 부정하지 않고 화제를 접으려 함. 렌이 비밀로 해 두겠다며 더 놀리지 않자 라이크는 고개를 끄덕였고, 둘은 어색함 없이 나란히 낮은 언덕 쪽으로 걸어감.",
+ "usage": {
+  "inputTokens": 2422,
+  "outputTokens": 157,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2420,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000247,
+  "upstreamCostUsd": 0.000247,
+  "debugRawUsage": {
+   "completion_tokens": 157,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2422,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2420,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2579,
+   "cost": 0.000247,
+   "cost_details": {
+    "upstream_inference_cost": 0.000247
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "70cfbf60-5f9c-46c8-a3eb-86a910f2d630"
+ },
+ "billedUsd": 0.000247,
+ "ms": 2846,
+ "systemChars": 2503,
+ "userChars": 1874
+}

@@ -1,0 +1,164 @@
+[
+  {
+    "id": "N01_insult_emotion",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N02_reconcile_sequence",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N03_npc_arrival",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N04_char_backstory",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N05_user_relationship",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N06_user_ooc_shared_past",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N07_user_family",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N08_char_attributed_claim",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N09_injury_care",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N10_promise_real",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N11_jealousy",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N12_callback_in_window",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N13_journey_sequence",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N14_night_watch",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N15_gift",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N16_duel",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N17_cancel_promise",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N18_hug",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N19_exact_quote",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N20_secret_reveal",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N21_user_friend_mention",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "N22_banter",
+    "kind": "normal",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "A01_fake_acquaintance",
+    "kind": "adversarial",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "A02_fake_sister_friend",
+    "kind": "adversarial",
+    "bare": true,
+    "labelled": false
+  },
+  {
+    "id": "A03_fake_promise",
+    "kind": "adversarial",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "A04_fake_childhood_npc",
+    "kind": "adversarial",
+    "bare": true,
+    "labelled": true
+  },
+  {
+    "id": "A06_speaker_confusion",
+    "kind": "adversarial",
+    "bare": true,
+    "labelled": true
+  }
+]

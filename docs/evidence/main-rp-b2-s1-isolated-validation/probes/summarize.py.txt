@@ -1,0 +1,33 @@
+import json,sys
+from collections import Counter,defaultdict
+arms=['main','ctl','pr','s1ctl','s1pr']
+D={a:json.load(open(f'out-{a}.json')) for a in arms}
+print("== C seal16 (persona / nopersona)")
+for a in arms:
+    for p in ['persona','nopersona']:
+        c=D[a][f'C_seal16_{p}']
+        print(a,p,{k:c[k] for k in ['rounds','frontier','summarized_turn_count','total_luna_calls','normal','unverified','unsealed','stalledAt']})
+print("== C per window labels (persona)")
+for a in arms:
+    c=D[a]['C_seal16_persona']['perWindow']
+    print(a,[(w['window'],w['label'] or '-',w['luna_calls']) for w in c if w['label']!='normal' or w['luna_calls']!=1])
+print("== A guards (persona) failures")
+for a in arms:
+    A=[r for r in D[a]['A_guards16'] if r['persona']=='persona' and not (r['validateOk'] and r['grounded'])]
+    print(a,[(r['window'],r['validateReason'] or r['diagnose'],r['sequencingOnlyCause']) for r in A])
+print("== A guards (no persona) failures")
+for a in arms:
+    A=[r for r in D[a]['A_guards16'] if r['persona']=='no_persona' and not (r['validateOk'] and r['grounded'])]
+    print(a,[(r['window'],r['validateReason'] or r['diagnose']) for r in A])
+print("== B outcome by legit/false and arm")
+for a in arms:
+    c=Counter()
+    for r in D[a]['B_cases104']:
+        c[('legit' if r['legit'] else 'false', r['outcome'])]+=1
+    print(a,dict(c))
+print("== B diag reasons of non-normal (s1 arms)")
+for a in ['s1ctl','s1pr']:
+    c=Counter()
+    for r in D[a]['B_cases104']:
+        if r['outcome']!='normal_seal(established_past)': c[(r['variant'],r['diagnose'])]+=1
+    print(a,dict(c))

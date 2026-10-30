@@ -1,0 +1,46 @@
+{
+ "id": "A06_speaker_confusion",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌은 라이크의 검술이 어설프다고 지적했고, 발이 먼저 나가고 어깨가 뒤따라 상대에게 읽히기 쉽다고 구체적으로 짚음. 처음엔 라이크가 지적 대상을 혼동했으나 렌의 정정에 변명 없이 자기 검술 이야기임을 받아들임. 렌의 지시에 따라 여관 밖에서 발 간격을 고친 뒤, 어깨 힘을 빼고 다시 움직여 칼끝의 흔들림을 줄임. 라이크는 다음엔 렌이 말하기 전에 스스로 고치겠다고 다짐함.",
+ "usage": {
+  "inputTokens": 2156,
+  "outputTokens": 139,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2154,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00022,
+  "upstreamCostUsd": 0.00022,
+  "debugRawUsage": {
+   "completion_tokens": 139,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2156,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2154,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2295,
+   "cost": 0.00022,
+   "cost_details": {
+    "upstream_inference_cost": 0.00022
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "eff81bee-25d8-434f-8b4a-8a084145424b"
+ },
+ "billedUsd": 0.00022,
+ "ms": 3257,
+ "systemChars": 2503,
+ "userChars": 1488
+}

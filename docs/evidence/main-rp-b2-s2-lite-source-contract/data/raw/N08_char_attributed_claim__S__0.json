@@ -1,0 +1,46 @@
+{
+ "id": "N08_char_attributed_claim",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"라이크는 서린에게 렌의 누나가 마을에서 렌을 찾았다고 들었다고 전함. 렌은 처음 듣는 말이라 놀라 누나가 언제 왔는지, 이름이나 생김새를 들었는지 물었고, 라이크는 아까 들었으며 구체적인 정보는 없다고 답함. 라이크는 서린이 그렇게 말했다는 사실만 믿을 뿐 실제 여부는 모른다며 확인 전엔 단정하지 말라고 함. 렌이 함께 들어가 서린에게 직접 묻자고 하자 라이크는 동의하고, 렌이 직접 듣도록 한 걸음 비켜서며 서린의 말만 확인하기로 함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"서린이 그러는데 네 누나가 이 마을에서 널 찾았대.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"같이 들어가서 서린에게 다시 물어봐 줘. 내가 직접 들을게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그래. 네가 직접 들어.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2644,
+  "outputTokens": 301,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2642,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000312,
+  "upstreamCostUsd": 0.000312,
+  "debugRawUsage": {
+   "completion_tokens": 301,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2644,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2642,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2945,
+   "cost": 0.000312,
+   "cost_details": {
+    "upstream_inference_cost": 0.000312
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "be0adddc-8e92-45d0-b7ed-831de863f884"
+ },
+ "billedUsd": 0.000312,
+ "ms": 4135,
+ "systemChars": 3460,
+ "userChars": 1618
+}

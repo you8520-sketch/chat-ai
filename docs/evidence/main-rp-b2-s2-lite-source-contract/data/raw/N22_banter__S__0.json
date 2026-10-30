@@ -1,0 +1,46 @@
+{
+ "id": "N22_banter",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"험한 길에서 렌이 돌과 진흙을 농담거리로 삼자 라이크는 돌을 치우고 걸음을 늦춰 보폭을 맞춤. 렌이 돌과 칼로 협상하겠다며 라이크에게 증인을 부탁하자, 라이크는 드물게 웃으며 받아침. 렌이 그 웃음을 짚자 라이크는 목격자는 필요 없다며 화제를 접으려 했지만 나란히 걷는 속도는 유지함. 렌이 더 놀리지 않고 비밀로 하겠다고 하자 라이크는 고개를 끄덕였고, 둘은 낮은 언덕 쪽으로 말없이 함께 걸음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"발끝으로 길가의 작은 돌을 밀어냈다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그 끝에 드문 웃음이 섞였다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"렌이 나란히 설 수 있도록 같은 보폭을 유지한 채\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"렌은 더 놀리지 않고, 라이크와 나란히 길을 걸었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2858,
+  "outputTokens": 338,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2856,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000342,
+  "upstreamCostUsd": 0.000342,
+  "debugRawUsage": {
+   "completion_tokens": 338,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2858,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2856,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3196,
+   "cost": 0.000342,
+   "cost_details": {
+    "upstream_inference_cost": 0.000342
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "21597c1a-bb41-4480-b179-a66416f00a63"
+ },
+ "billedUsd": 0.000342,
+ "ms": 4789,
+ "systemChars": 3460,
+ "userChars": 1907
+}

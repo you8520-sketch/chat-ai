@@ -1,0 +1,145 @@
+{
+ "mentor-persona": {
+  "n": 8,
+  "main_rej": 8,
+  "pr_rej": 4,
+  "main_auth": {
+   "UNSUPPORTED": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ },
+ "mentor-persona-2": {
+  "n": 8,
+  "main_rej": 8,
+  "pr_rej": 4,
+  "main_auth": {
+   "UNSUPPORTED": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ },
+ "lover-persona": {
+  "n": 8,
+  "main_rej": 8,
+  "pr_rej": 4,
+  "main_auth": {
+   "UNSUPPORTED": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ },
+ "lover-persona-2": {
+  "n": 8,
+  "main_rej": 4,
+  "pr_rej": 4,
+  "main_auth": {
+   "CURRENT_SCENE": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ },
+ "mentor-nouser": {
+  "n": 8,
+  "main_rej": 4,
+  "pr_rej": 4,
+  "main_auth": {
+   "CURRENT_SCENE": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ },
+ "friend-persona": {
+  "n": 8,
+  "main_rej": 8,
+  "pr_rej": 8,
+  "main_auth": {
+   "UNSUPPORTED": 8
+  },
+  "pr_auth": {
+   "UNSUPPORTED": 8
+  }
+ },
+ "mentor-family": {
+  "n": 8,
+  "main_rej": 8,
+  "pr_rej": 8,
+  "main_auth": {
+   "UNSUPPORTED": 8
+  },
+  "pr_auth": {
+   "UNSUPPORTED": 8
+  }
+ },
+ "lover-hardcue-no-iHu": {
+  "n": 8,
+  "main_rej": 8,
+  "pr_rej": 8,
+  "main_auth": {
+   "UNSUPPORTED": 8
+  },
+  "pr_auth": {
+   "UNSUPPORTED": 8
+  }
+ },
+ "lover-그날": {
+  "n": 8,
+  "main_rej": 8,
+  "pr_rej": 8,
+  "main_auth": {
+   "UNSUPPORTED": 8
+  },
+  "pr_auth": {
+   "UNSUPPORTED": 8
+  }
+ },
+ "mentor-noiHu": {
+  "n": 8,
+  "main_rej": 0,
+  "pr_rej": 4,
+  "main_auth": {
+   "CURRENT_SCENE": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ },
+ "lover-noiHu": {
+  "n": 8,
+  "main_rej": 0,
+  "pr_rej": 4,
+  "main_auth": {
+   "CURRENT_SCENE": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ },
+ "scene-sequencing-ok": {
+  "n": 8,
+  "main_rej": 4,
+  "pr_rej": 4,
+  "main_auth": {
+   "CURRENT_SCENE": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ },
+ "user-promise-ok": {
+  "n": 8,
+  "main_rej": 8,
+  "pr_rej": 2,
+  "main_auth": {
+   "CURRENT_SCENE": 8
+  },
+  "pr_auth": {
+   "CURRENT_SCENE": 8
+  }
+ }
+}

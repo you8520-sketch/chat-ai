@@ -1,0 +1,46 @@
+{
+ "id": "FX41",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크가 연속해서 장작을 쌓아 41~45번째 장작까지 쌓음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":45,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 45번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1986,
+  "outputTokens": 78,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1984,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000038,
+  "upstreamCostUsd": 0.000038,
+  "debugRawUsage": {
+   "completion_tokens": 78,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1986,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1984
+   },
+   "total_tokens": 2064,
+   "cost": 0.000038,
+   "cost_details": {
+    "upstream_inference_cost": 0.000038
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "1ead74ed-2800-4abd-b6a6-7e59432f27f3"
+ },
+ "billedUsd": 0.000038,
+ "ms": 2774,
+ "systemChars": 3460,
+ "userChars": 617
+}

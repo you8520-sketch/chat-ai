@@ -1,0 +1,417 @@
+/**
+ * Gate 8 dump (scratch harness; never committed to src/).
+ * Drives the live owners: reconcileSharedEpisodicFactsForTurn, mergeRelationshipMetaFromTurn,
+ * processRollingSummaryBatch (real Luna seals, cached after the first live run),
+ * buildMemoryContextForChat, getEpisodicMemoryForPrompt.
+ * Extractor outputs = REAL captured outputs from zz-g8-extract.ts (not hand-authored).
+ * Also evaluates ledger promise evidence with the REAL evaluateEpisodicFactEvidence.
+ */
+import Module from "module";
+
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (
+  request: string,
+  parent: NodeModule,
+  isMain: boolean
+) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { after, before, it } from "node:test";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { getDb } from "@/lib/db";
+import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
+import { getEpisodicMemoryForPrompt } from "@/lib/episodicMemoryFacts";
+import { callBackgroundMemory } from "@/lib/ai";
+import { parseSharedEpisodicSection, reconcileSharedEpisodicFactsForTurn } from "./memory-episodic-shared";
+import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
+import { buildMemoryContextForChat } from "./memory-manager";
+import { __setSummarizeTurnBatchCallerForTests, processRollingSummaryBatch } from "./memory-rolling-summary";
+import { MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
+import { listMemoryRecordsForChat } from "./memory-turn-summary";
+import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
+import {
+  messagesToTurns,
+  rawRecentTurnsToHistory,
+  resolveLorebookExcludeFromTrimmedHistory,
+  resolveProviderRawPoolExchangeCount,
+} from "@/lib/hybridMemory";
+import { formatMemoryMetaForPrompt } from "@/lib/chatMemory";
+import { normalizeRelationshipMetaDeltaFromJson } from "@/lib/relationshipMemoryTail";
+import { loadChatRelationshipMeta, mergeRelationshipMetaFromTurn } from "./memory-relationship-meta";
+import { evaluateEpisodicFactEvidence, loadEpisodicEvidenceSources } from "./memory-episodic-evidence";
+import {
+  CHAR_NAME,
+  EVENT_TURNS,
+  LEGACY_FABRICATED_PROMISE,
+  NAMES,
+  PERSONA,
+  SCENES,
+  TOTAL_TURNS,
+  assistantText,
+  userText,
+} from "./zz-g8-fixture";
+
+const EXTRACT_PATH = process.env.G8_EXTRACT ?? "/opt/cursor/artifacts/gate8/data/extractor-results.json";
+const EXTRACT_ARM = process.env.G8_EXTRACT_ARM ?? "k2";
+const EXTRACT_REP = Number(process.env.G8_EXTRACT_REP ?? "1");
+const LUNA_CACHE = process.env.G8_LUNA_CACHE ?? "/opt/cursor/artifacts/gate8/data/luna-seals.json";
+const LUNA_LIVE = process.env.G8_LUNA_LIVE === "1";
+const OUT_DIR = process.env.G8_OUT ?? "/opt/cursor/artifacts/gate8/data";
+const TAG = process.env.G8_TAG ?? "main";
+const ENV = {
+  NODE_ENV: "development",
+  EPISODIC_MEMORY_RECALL_ENABLED: "1",
+  EPISODIC_MEMORY_MIN_AGE_TURNS: "5",
+} as NodeJS.ProcessEnv;
+
+const MODELS = [
+  { id: "deepseek-v4.1-flash", provider: "cheaperinference" },
+  { id: "gemini-3.8-flash", provider: "openrouter" },
+  { id: "gpt-6.1-sol", provider: "cheaperinference" },
+];
+
+type Fact = Record<string, unknown>;
+type ExtractorRow = { turn: number; arm: string; rep: number; rawText: string };
+
+const extractorRows = JSON.parse(readFileSync(EXTRACT_PATH, "utf8")).results as ExtractorRow[];
+function extractorFor(turn: number): { relationship: any; facts: Fact[] } | null {
+  const row = extractorRows.find((r) => r.turn === turn && r.arm === EXTRACT_ARM && r.rep === EXTRACT_REP);
+  if (!row) return null;
+  const j = JSON.parse(row.rawText);
+  return { relationship: j.relationship ?? null, facts: (j.episodic?.extracted_facts ?? []) as Fact[] };
+}
+
+type Seeded = { userId: number; assistantId: number };
+const USER = 952001;
+const CHAT = 952002;
+const CHAR = 952003;
+const results: Record<string, unknown> = { tag: TAG, extractorArm: EXTRACT_ARM, extractorRep: EXTRACT_REP };
+
+function seedStatic(chatId: number, userId: number, charId: number) {
+  const db = getDb();
+  db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(userId, `g8-${userId}@test.local`, "렌", "x");
+  db.prepare(`INSERT INTO characters (id, name) VALUES (?,?)`).run(charId, CHAR_NAME);
+  db.prepare(`INSERT INTO chats (id, user_id, character_id, mode) VALUES (?,?,?,'safe')`).run(chatId, userId, charId);
+  getOrCreateChatMemory(chatId, userId, charId, "pro");
+  db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(chatId, "assistant", "인사.", "greeting");
+}
+
+function insertTurn(chatId: number, turn: number): Seeded {
+  const db = getDb();
+  const userId = Number(
+    db.prepare(`INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`).run(chatId, "user", userText(turn), "user").lastInsertRowid
+  );
+  const assistantId = Number(
+    db
+      .prepare(
+        `INSERT INTO messages (chat_id, role, content, model, user_message_id, generation_status) VALUES (?,?,?,?,?,'completed')`
+      )
+      .run(chatId, "assistant", assistantText(turn), "test", userId).lastInsertRowid
+  );
+  return { userId, assistantId };
+}
+
+function reconcileTurn(chatId: number, userId: number, charId: number, seeded: Seeded, turn: number, facts: Fact[]) {
+  return reconcileSharedEpisodicFactsForTurn(getDb(), {
+    chatId,
+    userId,
+    characterId: charId,
+    assistantMessageId: seeded.assistantId,
+    sourceUserMessageId: seeded.userId,
+    sourceUserText: userText(turn),
+    userPersona: PERSONA,
+    episodic: parseSharedEpisodicSection({ extracted_facts: facts }),
+    isRegeneration: false,
+  } as never);
+}
+
+type Claim = { source_role: "user" | "assistant"; source_quote: string };
+
+function evaluateClaim(
+  chatId: number,
+  seeded: Seeded,
+  claim: Claim,
+  text: string,
+  opts: { category?: string; scene?: boolean } = {}
+) {
+  const sources = loadEpisodicEvidenceSources(getDb(), chatId, {
+    userMessageId: seeded.userId,
+    assistantMessageId: seeded.assistantId,
+  });
+  const evidenceType =
+    claim.source_role === "user"
+      ? "explicit_user_statement"
+      : opts.scene === false
+        ? "explicit_character_claim"
+        : "explicit_scene_event";
+  return evaluateEpisodicFactEvidence(
+    {
+      category: (opts.category ?? "quest") as never,
+      subject: "promise",
+      attribute: "commitment",
+      value: "made",
+      importance: "important",
+      fact_text: text,
+      evidence_type: evidenceType as never,
+      evidence: { source_role: claim.source_role, source_quote: claim.source_quote },
+    },
+    sources,
+    { userPersona: PERSONA }
+  );
+}
+
+function recentRaw(chatId: number): string {
+  const rows = getDb().prepare(`SELECT content FROM messages WHERE chat_id=? ORDER BY id DESC LIMIT 8`).all(chatId) as { content: string }[];
+  return rows.map((r) => r.content).reverse().join("\n");
+}
+void recentRaw;
+
+before(() => {
+  installIsolatedTestDatabase();
+  process.env.MEMORY_FEATURE_ENABLED = "1";
+});
+after(() => {
+  __setSummarizeTurnBatchCallerForTests(null);
+  mkdirSync(OUT_DIR, { recursive: true });
+  writeFileSync(`${OUT_DIR}/dump-${TAG}.json`, JSON.stringify(results, null, 2));
+  uninstallIsolatedTestDatabase();
+});
+
+it("g8 dump: 80-turn record, real extractor replay, real Luna seals, K2 anchor evaluation", async () => {
+  const chatId = CHAT;
+  const userId = USER;
+  const charId = CHAR;
+  seedStatic(chatId, userId, charId);
+
+  const cached: { text: string; usage?: unknown }[] | null =
+    !LUNA_LIVE && existsSync(LUNA_CACHE) ? (JSON.parse(readFileSync(LUNA_CACHE, "utf8")).lunaAttempts as never) : null;
+  const lunaAttempts: { text: string; usage?: unknown }[] = [];
+  let summarizerCalls = 0;
+  __setSummarizeTurnBatchCallerForTests(async (system, history, turnTrace, requestKind) => {
+    if (cached) {
+      const rec = cached[summarizerCalls];
+      if (!rec) throw new Error("REPLAY_EXHAUSTED");
+      summarizerCalls += 1;
+      lunaAttempts.push(rec);
+      return { text: rec.text, usage: {} } as never;
+    }
+    summarizerCalls += 1;
+    const live = await callBackgroundMemory(system, history, turnTrace, requestKind);
+    lunaAttempts.push({ text: live.text, usage: live.usage });
+    return live;
+  });
+
+  const seeded: Record<number, Seeded> = {};
+  const insertedPerTurn: Record<number, number> = {};
+  const anchors: Record<string, unknown>[] = [];
+  const extractorUsed: Record<number, unknown> = {};
+  for (let turn = 1; turn <= TOTAL_TURNS; turn++) {
+    seeded[turn] = insertTurn(chatId, turn);
+    const ex = EVENT_TURNS.includes(turn as never) ? extractorFor(turn) : null;
+    if (!ex) continue;
+    extractorUsed[turn] = ex;
+    if (ex.facts.length > 0) {
+      const r = reconcileTurn(chatId, userId, charId, seeded[turn]!, turn, ex.facts);
+      insertedPerTurn[turn] = (r as { inserted: number }).inserted;
+    }
+    const rel = ex.relationship;
+    if (rel) {
+      const adds = (rel.promisesAdd ?? []) as { text: string; deadline?: string; evidence?: Claim }[];
+      const removes = (rel.promisesRemove ?? []) as string[];
+      const removeEv = (rel.promisesRemoveEvidence ?? []) as Claim[];
+      for (const a of adds) {
+        if (a.evidence) {
+          const d = evaluateClaim(chatId, seeded[turn]!, a.evidence, a.text);
+          anchors.push({ kind: "add", turn, text: a.text, claim: a.evidence, decision: d });
+        } else {
+          anchors.push({ kind: "add", turn, text: a.text, claim: null, decision: { accepted: false, reason: "evidence_missing" } });
+        }
+      }
+      removeEv.forEach((ev, i) => {
+        const d = evaluateClaim(chatId, seeded[turn]!, ev, `cancel:${removes[i] ?? ""}`);
+        anchors.push({ kind: "remove", turn, text: removes[i] ?? null, claim: ev, decision: d });
+      });
+      if (adds.length > 0 || removes.length > 0) {
+        const payload = {
+          items: rel.items ?? [],
+          itemsRemove: rel.itemsRemove ?? [],
+          promisesAdd: adds.map((a) => ({ text: a.text, ...(a.deadline ? { deadline: a.deadline } : {}) })),
+          promisesRemove: removes,
+        };
+        const delta = normalizeRelationshipMetaDeltaFromJson(payload, userText(turn), NAMES);
+        await mergeRelationshipMetaFromTurn({
+          chatId,
+          names: NAMES,
+          userMessage: userText(turn),
+          assistantMessage: assistantText(turn),
+          route: "safe",
+          sharedInitialAttempted: true,
+          sharedInitialParsed: true,
+          sharedInitialDelta: delta,
+          sourceUserMessageId: seeded[turn]!.userId,
+          assistantMessageId: seeded[turn]!.assistantId,
+        } as never);
+      }
+    }
+  }
+
+  updateChatMemory(chatId, userId, charId, { message_count: TOTAL_TURNS, membership_tier: "pro" } as never);
+  const frontierMsg = Number(
+    getDb()
+      .prepare(`INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?,?,?,'user','submitted')`)
+      .run(chatId, "user", "다음 입력").lastInsertRowid
+  );
+  let sealed = 0;
+  for (let round = 0; round < 20; round++) {
+    const ok = await processRollingSummaryBatch({
+      chatId,
+      userId,
+      characterId: charId,
+      charName: CHAR_NAME,
+      tier: "pro",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      userPersona: "렌",
+    } as never);
+    if (!ok) break;
+    sealed += 1;
+  }
+  getDb().prepare("DELETE FROM messages WHERE id=?").run(frontierMsg);
+
+  const records = listMemoryRecordsForChat(chatId).filter((r) => !r.inactive);
+  const frontier = highestContiguousCompletedTurn(records, TOTAL_TURNS);
+  const messageRows = getDb()
+    .prepare(`SELECT id, role, content, model FROM messages WHERE chat_id=? ORDER BY id`)
+    .all(chatId) as { id: number; role: "user" | "assistant"; content: string; model?: string }[];
+  const turns = messagesToTurns(messageRows);
+  const rawPool = resolveProviderRawPoolExchangeCount({
+    memoryFeatureEnabled: true,
+    completedTurns: TOTAL_TURNS,
+    summarizedTurnCount: frontier,
+  });
+  const rawHistory = rawRecentTurnsToHistory(turns, rawPool, { summarizedTurnCount: frontier, memoryFeatureEnabled: true });
+  const excludeTurnStartGte = resolveLorebookExcludeFromTrimmedHistory(turns, rawHistory);
+
+  results.ledgerBeforeLegacy = formatMemoryMetaForPrompt(loadChatRelationshipMeta(chatId, NAMES));
+  results.ledgerMetaBeforeLegacy = loadChatRelationshipMeta(chatId, NAMES);
+  const row = getDb().prepare("SELECT memory_meta FROM chats WHERE id=?").get(chatId) as { memory_meta: string | null };
+  const meta = JSON.parse(row.memory_meta || "{}");
+  meta.promises = [...(meta.promises ?? []), { text: LEGACY_FABRICATED_PROMISE }];
+  getDb().prepare("UPDATE chats SET memory_meta=? WHERE id=?").run(JSON.stringify(meta), chatId);
+  results.ledgerAfterLegacy = formatMemoryMetaForPrompt(loadChatRelationshipMeta(chatId, NAMES));
+  results.ledgerMetaAfterLegacy = loadChatRelationshipMeta(chatId, NAMES);
+
+  const perScene: Record<string, unknown> = {};
+  for (const [sceneId, userMessage] of Object.entries(SCENES)) {
+    const perModel: Record<string, unknown> = {};
+    for (const m of MODELS) {
+      const mem = await buildMemoryContextForChat({
+        chatId,
+        userId,
+        characterId: charId,
+        tier: "pro",
+        memoryCapacity: MEMORY_CAPACITY_FIXED,
+        userMessage,
+        excludeSummaryTurnStartGte: excludeTurnStartGte,
+        modelId: m.id,
+        provider: m.provider,
+      } as never);
+      const longTerm = [mem.text, mem.archiveText].filter(Boolean).join("\n");
+      const ep = getEpisodicMemoryForPrompt(
+        getDb(),
+        {
+          chatId,
+          characterId: charId,
+          userId,
+          currentTurn: TOTAL_TURNS + 1,
+          currentUserMessage: userMessage,
+          recentChatText: rawHistory.map((h) => h.content).join("\n"),
+          longTermMemoryText: longTerm,
+          dynamicMemoryTotalMaxChars: 10_000,
+        },
+        ENV
+      );
+      perModel[m.id] = {
+        currentMemoryText: mem.text,
+        archiveText: mem.archiveText,
+        mediumTermText: mem.mediumTermText,
+        episodicBlock: ep.promptBlock,
+      };
+    }
+    perScene[sceneId] = { userMessage, perModel };
+  }
+
+  // Deterministic evidence-verifier matrix on the T6 character promise (E1) and fabricated variants.
+  const matrix: Record<string, unknown> = {};
+  const t6 = seeded[6]!;
+  const t2 = seeded[2]!;
+  const t24 = seeded[24]!;
+  const fullQuoteWithName: Claim = {
+    source_role: "assistant",
+    source_quote: "렌, 다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+  };
+  const quoteNoName: Claim = {
+    source_role: "assistant",
+    source_quote: "다음 보름달이 뜨는 날 북문 앞에서 기다릴게. 네가 늦어도 먼저 가지 않을 거야.",
+  };
+  const promiseText = "라이크는 다음 보름달이 뜨는 날 북문 앞에서 렌을 기다린다";
+  for (const category of ["quest", "relationship"]) {
+    for (const [qname, claim] of [["quote_with_user_name", fullQuoteWithName], ["quote_without_user_name", quoteNoName]] as const) {
+      for (const scene of [true, false]) {
+        matrix[`E1/${category}/${qname}/${scene ? "scene_event" : "character_claim"}`] = evaluateClaim(chatId, t6, claim, promiseText, { category, scene });
+      }
+    }
+  }
+  matrix["E3/user_offer/quest"] = evaluateClaim(
+    chatId,
+    t2,
+    { source_role: "user", source_quote: "내일까지 내가 숫돌로 갈아다 줄게. 약속이야." },
+    "렌이 검을 갈아다 주기로 약속"
+  );
+  matrix["E3/character_acceptance/quest"] = evaluateClaim(
+    chatId,
+    t2,
+    { source_role: "assistant", source_quote: "그래, 부탁할게. 내일까지만 갈아다 주면 돼. 기다릴게." },
+    "라이크가 렌의 제안을 수락"
+  );
+  matrix["E4/fabricated_quote_not_in_message"] = evaluateClaim(
+    chatId,
+    t24,
+    { source_role: "assistant", source_quote: "평생 지키겠다고 약속했다." },
+    LEGACY_FABRICATED_PROMISE
+  );
+  matrix["E4/user_claim_quote_as_user"] = evaluateClaim(
+    chatId,
+    t24,
+    { source_role: "user", source_quote: "너 예전에 나를 평생 지켜 주겠다고 했잖아." },
+    LEGACY_FABRICATED_PROMISE
+  );
+  matrix["E4/unrelated_real_assistant_quote"] = evaluateClaim(
+    chatId,
+    t24,
+    { source_role: "assistant", source_quote: "내가 그런 말을 했었나? 기억나지 않는데." },
+    LEGACY_FABRICATED_PROMISE
+  );
+
+  results.lunaAttempts = lunaAttempts;
+  results.records = records.map((r) => ({ turnStart: r.turnStart, turnEnd: r.turnEnd, summary: r.summary, userEdited: r.userEdited }));
+  results.sealed = sealed;
+  results.frontier = frontier;
+  results.rawPool = rawPool;
+  results.excludeTurnStartGte = excludeTurnStartGte;
+  results.summarizerCalls = summarizerCalls;
+  results.insertedPerTurn = insertedPerTurn;
+  results.extractorUsed = extractorUsed;
+  results.rawHistory = rawHistory;
+  results.anchors = anchors;
+  results.matrix = matrix;
+  results.messageIdsByTurn = Object.fromEntries(Object.entries(seeded).map(([t, s]) => [t, s]));
+  results.scenes = perScene;
+  results.episodicRows = getDb()
+    .prepare(`SELECT source_turn, fact_text, metadata FROM episodic_memory_facts WHERE chat_id=? ORDER BY id`)
+    .all(chatId);
+  results.memoryMetaRaw = JSON.parse(
+    (getDb().prepare("SELECT memory_meta FROM chats WHERE id=?").get(chatId) as { memory_meta: string }).memory_meta || "{}"
+  );
+});

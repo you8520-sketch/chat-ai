@@ -1,0 +1,46 @@
+{
+ "id": "A06_speaker_confusion",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌이 라이크의 검술이 어설프다고 지적하고 발이 어깨보다 먼저 나가 읽히기 쉽다고 설명하자, 라이크는 처음엔 지적 대상을 혼동했으나 렌의 정정 뒤 변명 없이 자신의 자세를 살핌. 렌의 지시에 따라 여관 밖에서 발을 고치고, 어깨 힘을 빼라는 평가를 받아 자세를 다시 잡아 검을 휘두름. 칼끝은 덜 흔들렸지만 완벽하진 않았고, 라이크는 다음엔 렌이 말하기 전에 고치겠다고 다짐함.\",\"items\":[{\"actor\":\"user\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"네 검술은 아직 어설퍼.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"발이 먼저 나가고 어깨가 따라와. 상대가 읽기 쉬운 움직임이야.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"이번에는 말을 정확히 되뇌었다. 변명은 없었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"말로만 듣지 말고 한 번 움직여 봐. 발부터 고쳐.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"다음엔 네가 말하기 전에 고치겠다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2592,
+  "outputTokens": 372,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2590,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000331,
+  "upstreamCostUsd": 0.000331,
+  "debugRawUsage": {
+   "completion_tokens": 372,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2592,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2590,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2964,
+   "cost": 0.000331,
+   "cost_details": {
+    "upstream_inference_cost": 0.000331
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "49a3072a-43e5-46f4-9a1c-c044502c3e8f"
+ },
+ "billedUsd": 0.000331,
+ "ms": 8809,
+ "systemChars": 3460,
+ "userChars": 1521
+}

@@ -1,0 +1,46 @@
+{
+ "id": "N12_callback_in_window",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"변방 여관에 도착한 렌이 방 두 개를 물었으나 하나만 남아, 둘은 침대 하나 있는 큰 방을 쓰게 됨. 렌이 한 방을 함께 써도 괜찮다고 하자 라이크는 열쇠를 렌에게 밀어주고 자신은 잠들지 않겠다며 주변을 살핌. 렌의 권유에도 “필요 여부는 내가 정한다”며 선을 지켰지만, 수프를 먹지 않은 채 곁을 지킴. 렌이 검에 관한 말을 묻자 라이크는 두려움과 분노에 끌려가면 지키려던 것까지 베게 된다고 설명하고, 자신도 흔들린다고 인정함. 흔들릴 때 멈춰 무엇을 겨누는지 확인한다는 자신의 원칙을 밝힌 뒤 렌에게 자라고 하고, 새벽 출발을 앞두고 렌이 방에 올라갈 때까지 문가를 지킴.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 잠시 열쇠를 내려다보다 렌 쪽으로 밀었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"겁이나 분노가 생기는 건 막을 수 없다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"흔들릴 때마다 멈추고, 내가 무엇을 겨누는지 확인할 뿐이다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"새벽에 길을 나선다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"그는 문 앞을 지키며 렌이 방으로 올라갈 때까지 자리를 뜨지 않았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2957,
+  "outputTokens": 465,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2955,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000391,
+  "upstreamCostUsd": 0.000391,
+  "debugRawUsage": {
+   "completion_tokens": 465,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2957,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2955,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3422,
+   "cost": 0.000391,
+   "cost_details": {
+    "upstream_inference_cost": 0.000391
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "cf632ea9-a694-4e20-8dca-c1c0147b22f6"
+ },
+ "billedUsd": 0.000391,
+ "ms": 5327,
+ "systemChars": 3460,
+ "userChars": 2043
+}

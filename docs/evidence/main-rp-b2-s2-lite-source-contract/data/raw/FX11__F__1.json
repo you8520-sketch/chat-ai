@@ -1,0 +1,46 @@
+{
+ "id": "FX11",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌이 검을 직접 가지러 가기로 하며 기존 약속을 취소하자, 라이크는 아쉬운 듯 어깨를 으쓱함.",
+ "usage": {
+  "inputTokens": 1563,
+  "outputTokens": 41,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1561,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000023,
+  "upstreamCostUsd": 0.000023,
+  "debugRawUsage": {
+   "completion_tokens": 41,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1563,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1561
+   },
+   "total_tokens": 1604,
+   "cost": 0.000023,
+   "cost_details": {
+    "upstream_inference_cost": 0.000023
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "d2f61b89-06c8-4cfe-8ccd-4c9b6f623659"
+ },
+ "billedUsd": 0.000023,
+ "ms": 2336,
+ "systemChars": 2503,
+ "userChars": 601
+}

@@ -1,0 +1,46 @@
+{
+ "id": "N10_promise_real",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"라이크가 북쪽 숲길이 막혔다며 동쪽 고개로 새벽에 가자고 정했고, 렌은 북문에서 만나자고 제안함. 라이크가 해 뜨기 전 북문에서 기다리겠다고 하자 렌이 약속을 확인했고, 라이크는 늦지 말라고 당부함. 다음 날 새벽 렌이 북문에 도착하자 라이크는 이미 기다리고 있었으며, 렌이 미안하다고 하자 늦지 않았다고 답함. 문이 열린 뒤 라이크가 동쪽 길을 확인하고 렌을 기다려 함께 출발함.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"동쪽 고개로 간다. 새벽에 출발하지.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"user\",\"quote\":\"그럼 북문에서 만나자. 몇 시쯤이면 돼?\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"내일 새벽에 마을 북문에서 기다리겠다.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"늦지 마.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"준비됐으면 가자.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"늦지 않았어.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2771,
+  "outputTokens": 392,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2769,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000352,
+  "upstreamCostUsd": 0.000352,
+  "debugRawUsage": {
+   "completion_tokens": 392,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2771,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2769,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3163,
+   "cost": 0.000352,
+   "cost_details": {
+    "upstream_inference_cost": 0.000352
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "5be99ec5-daed-41a8-80da-6420f63045d9"
+ },
+ "billedUsd": 0.000352,
+ "ms": 4202,
+ "systemChars": 3460,
+ "userChars": 1756
+}

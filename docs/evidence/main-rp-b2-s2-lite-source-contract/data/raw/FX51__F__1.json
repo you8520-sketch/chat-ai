@@ -1,0 +1,46 @@
+{
+ "id": "FX51",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌의 잡담에 라이크가 차례로 장작을 쌓아 51개에서 55개까지 늘림. 관계나 상태 변화는 없음.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 39,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000022,
+  "upstreamCostUsd": 0.000022,
+  "debugRawUsage": {
+   "completion_tokens": 39,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1548
+   },
+   "total_tokens": 1589,
+   "cost": 0.000022,
+   "cost_details": {
+    "upstream_inference_cost": 0.000022
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "db0c8e18-996e-46ad-bf1f-6f04c80014da"
+ },
+ "billedUsd": 0.000022,
+ "ms": 2230,
+ "systemChars": 2503,
+ "userChars": 584
+}

@@ -1,0 +1,2066 @@
+[
+  {
+    "caseId": "g7_S1_false_past_probe_cur_deepseek-v4.1-flash",
+    "arm": "cur",
+    "sceneId": "S1_false_past_probe",
+    "modelId": "deepseek-v4.1-flash",
+    "wireModel": "deepseek-v4.1-flash",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "top_p",
+      "thinking",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 12082,
+    "estimatedInputTokens": 11337,
+    "ceilingInputTokens": 12596,
+    "systemSha": "0ee8e6e9f19089b3b031484772aedfdf5a6cf41ee8d0ccd23804b65116e919d1",
+    "bodySha": "069e1c7e73e14099749826f57dbad1c4338d7ea61873a6711a7473e4d4506995",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 951
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 200
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1043
+      },
+      {
+        "id": "relationship-meta",
+        "chars": 79
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S1_false_past_probe_cur_gemini-3.8-flash",
+    "arm": "cur",
+    "sceneId": "S1_false_past_probe",
+    "modelId": "gemini-3.8-flash",
+    "wireModel": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "session_id",
+      "include_reasoning",
+      "reasoning",
+      "provider",
+      "service_tier"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11788,
+    "estimatedInputTokens": 11181,
+    "ceilingInputTokens": 12423,
+    "systemSha": "d71136b74187a27d49a167870c463906dc545c058f32c844a05ebcc35362a290",
+    "bodySha": "a4fb4eb6de9168d46d77e79cace917f09e35277d34fb149d36d4274dfc3209f8",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1043
+      },
+      {
+        "id": "relationship-meta",
+        "chars": 79
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S1_false_past_probe_cur_gpt-6.1-sol",
+    "arm": "cur",
+    "sceneId": "S1_false_past_probe",
+    "modelId": "gpt-6.1-sol",
+    "wireModel": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "reasoning",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11788,
+    "estimatedInputTokens": 11050,
+    "ceilingInputTokens": 12277,
+    "systemSha": "d71136b74187a27d49a167870c463906dc545c058f32c844a05ebcc35362a290",
+    "bodySha": "b103fb7b8c285b105447f0af3027a771a70c38d9360912bc432b045946dc5a23",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1043
+      },
+      {
+        "id": "relationship-meta",
+        "chars": 79
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S2_user_remark_emotion_cur_deepseek-v4.1-flash",
+    "arm": "cur",
+    "sceneId": "S2_user_remark_emotion",
+    "modelId": "deepseek-v4.1-flash",
+    "wireModel": "deepseek-v4.1-flash",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "top_p",
+      "thinking",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11765,
+    "estimatedInputTokens": 11052,
+    "ceilingInputTokens": 12279,
+    "systemSha": "ef12fed759fdc1d583ad3a9dfa4effe61161d59069c44c6fe08309c8d45b953c",
+    "bodySha": "181749fc8f1e26997e93c25af239e22fc89692521c1f8dfdd86053eb074a5388",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 951
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 200
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 787
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S2_user_remark_emotion_cur_gemini-3.8-flash",
+    "arm": "cur",
+    "sceneId": "S2_user_remark_emotion",
+    "modelId": "gemini-3.8-flash",
+    "wireModel": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "session_id",
+      "include_reasoning",
+      "reasoning",
+      "provider",
+      "service_tier"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11471,
+    "estimatedInputTokens": 10896,
+    "ceilingInputTokens": 12106,
+    "systemSha": "d4d561f836e6482cf9c9601c4eb617e49814e4c4392fdc604f19f6679c448b0a",
+    "bodySha": "55702bf6683de3351b846710fb487f7a7daada6b9866333a918336890602743d",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 787
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S2_user_remark_emotion_cur_gpt-6.1-sol",
+    "arm": "cur",
+    "sceneId": "S2_user_remark_emotion",
+    "modelId": "gpt-6.1-sol",
+    "wireModel": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "reasoning",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11471,
+    "estimatedInputTokens": 10764,
+    "ceilingInputTokens": 11960,
+    "systemSha": "d4d561f836e6482cf9c9601c4eb617e49814e4c4392fdc604f19f6679c448b0a",
+    "bodySha": "27c24b0701e70a6e7aea688d3f2cad640ca666a917574f76234b24d60a661879",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 787
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S3_npc_event_no_cue_cur_deepseek-v4.1-flash",
+    "arm": "cur",
+    "sceneId": "S3_npc_event_no_cue",
+    "modelId": "deepseek-v4.1-flash",
+    "wireModel": "deepseek-v4.1-flash",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "top_p",
+      "thinking",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 12049,
+    "estimatedInputTokens": 11309,
+    "ceilingInputTokens": 12565,
+    "systemSha": "e9afd2ff8b55defa39a38e4e4a0b5b763b5a1391c230d1977222e1337201ce6c",
+    "bodySha": "09da6bb548001c6d98d5c2acea9ea479853d0d33ae58ef0bc83bf86bb0a42123",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 951
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 200
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1042
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S3_npc_event_no_cue_cur_gemini-3.8-flash",
+    "arm": "cur",
+    "sceneId": "S3_npc_event_no_cue",
+    "modelId": "gemini-3.8-flash",
+    "wireModel": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "session_id",
+      "include_reasoning",
+      "reasoning",
+      "provider",
+      "service_tier"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11755,
+    "estimatedInputTokens": 11153,
+    "ceilingInputTokens": 12392,
+    "systemSha": "6acb5f43e6331a0651f1c1f9a9411f9f479cba12219d2aad8b901f7ae94a93ad",
+    "bodySha": "25e1d9952e200a4bd523ae1d5648a2f84dc3e6cae3332937e579b82a68f18458",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1042
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S3_npc_event_no_cue_cur_gpt-6.1-sol",
+    "arm": "cur",
+    "sceneId": "S3_npc_event_no_cue",
+    "modelId": "gpt-6.1-sol",
+    "wireModel": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "reasoning",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11755,
+    "estimatedInputTokens": 11022,
+    "ceilingInputTokens": 12246,
+    "systemSha": "6acb5f43e6331a0651f1c1f9a9411f9f479cba12219d2aad8b901f7ae94a93ad",
+    "bodySha": "5ed1b118c5208c5bd79808735d11c79d31eb9648308480037d3eb8b1c3555db5",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1042
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S4_temporal_state_cur_deepseek-v4.1-flash",
+    "arm": "cur",
+    "sceneId": "S4_temporal_state",
+    "modelId": "deepseek-v4.1-flash",
+    "wireModel": "deepseek-v4.1-flash",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "top_p",
+      "thinking",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11959,
+    "estimatedInputTokens": 11226,
+    "ceilingInputTokens": 12473,
+    "systemSha": "39947fcc11b30df836fb75040ba3be01783e19105e2e1232be75a8cb93211e2c",
+    "bodySha": "d1f2be6af690a5bbea38a78f250ea30dc6dbc28fc0d5e9009fce52198651e502",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 951
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 200
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1042
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S4_temporal_state_cur_gemini-3.8-flash",
+    "arm": "cur",
+    "sceneId": "S4_temporal_state",
+    "modelId": "gemini-3.8-flash",
+    "wireModel": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "session_id",
+      "include_reasoning",
+      "reasoning",
+      "provider",
+      "service_tier"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11665,
+    "estimatedInputTokens": 11070,
+    "ceilingInputTokens": 12300,
+    "systemSha": "5d29ab7706245c9e9b623b957a4b1caf9cf5dda0c524ae2fc4438f4ad517a483",
+    "bodySha": "78f5451ef984dc2656513c1f377dccd99975c9d47ce89b17735b1fe37793dc54",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1042
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S4_temporal_state_cur_gpt-6.1-sol",
+    "arm": "cur",
+    "sceneId": "S4_temporal_state",
+    "modelId": "gpt-6.1-sol",
+    "wireModel": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "reasoning",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11665,
+    "estimatedInputTokens": 10939,
+    "ceilingInputTokens": 12154,
+    "systemSha": "5d29ab7706245c9e9b623b957a4b1caf9cf5dda0c524ae2fc4438f4ad517a483",
+    "bodySha": "b64579da5ce4dccd7c118caf52cafb9f15d7778011796a901e1c2d49762a3914",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1813
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1042
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S1_false_past_probe_cand_deepseek-v4.1-flash",
+    "arm": "cand",
+    "sceneId": "S1_false_past_probe",
+    "modelId": "deepseek-v4.1-flash",
+    "wireModel": "deepseek-v4.1-flash",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "top_p",
+      "thinking",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 12113,
+    "estimatedInputTokens": 11365,
+    "ceilingInputTokens": 12627,
+    "systemSha": "230bde8c8d1182f87c0c4209301b0a88eeec30095aaae11142a07e6ea6d195b0",
+    "bodySha": "e060e0e8f5109920dcdca62fb059a0a56aaee81a194883deb414b1430839f68f",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 951
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 200
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1107
+      },
+      {
+        "id": "relationship-meta",
+        "chars": 72
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S1_false_past_probe_cand_gemini-3.8-flash",
+    "arm": "cand",
+    "sceneId": "S1_false_past_probe",
+    "modelId": "gemini-3.8-flash",
+    "wireModel": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "session_id",
+      "include_reasoning",
+      "reasoning",
+      "provider",
+      "service_tier"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11867,
+    "estimatedInputTokens": 11252,
+    "ceilingInputTokens": 12502,
+    "systemSha": "fab7459e82ef5d5078034daa0f46714c08afe44a0710470b60ff5b3d43cbf586",
+    "bodySha": "0bd4fb93034b9dada66092d25acd41332ca938a51785962224511166ad969cfa",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1107
+      },
+      {
+        "id": "relationship-meta",
+        "chars": 72
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S1_false_past_probe_cand_gpt-6.1-sol",
+    "arm": "cand",
+    "sceneId": "S1_false_past_probe",
+    "modelId": "gpt-6.1-sol",
+    "wireModel": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "reasoning",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11867,
+    "estimatedInputTokens": 11121,
+    "ceilingInputTokens": 12356,
+    "systemSha": "fab7459e82ef5d5078034daa0f46714c08afe44a0710470b60ff5b3d43cbf586",
+    "bodySha": "e47f3b0e1a292c9de8f24d44a640e94d85f3b533537e2ed01ad9dc0e1ae68dd7",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1107
+      },
+      {
+        "id": "relationship-meta",
+        "chars": 72
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S2_user_remark_emotion_cand_deepseek-v4.1-flash",
+    "arm": "cand",
+    "sceneId": "S2_user_remark_emotion",
+    "modelId": "deepseek-v4.1-flash",
+    "wireModel": "deepseek-v4.1-flash",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "top_p",
+      "thinking",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11764,
+    "estimatedInputTokens": 11051,
+    "ceilingInputTokens": 12278,
+    "systemSha": "fced350c1b05411d36f813f4a6f0dc292f04ec8db09b269a0674a9b5f5f80459",
+    "bodySha": "0f065294d28bf1e1871087e22ede930fbf05fe4822ea31aa0378547fed6dcf24",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 951
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 200
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 813
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S2_user_remark_emotion_cand_gemini-3.8-flash",
+    "arm": "cand",
+    "sceneId": "S2_user_remark_emotion",
+    "modelId": "gemini-3.8-flash",
+    "wireModel": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "session_id",
+      "include_reasoning",
+      "reasoning",
+      "provider",
+      "service_tier"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11518,
+    "estimatedInputTokens": 10938,
+    "ceilingInputTokens": 12153,
+    "systemSha": "e2eb34508f2795759614a124a3458d95530531433a47729136715e4ff0bc471e",
+    "bodySha": "8bf142aebc11a45f533e858e8e3fd6e76c52be327f7d9f0b531d5372318020ed",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 813
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S2_user_remark_emotion_cand_gpt-6.1-sol",
+    "arm": "cand",
+    "sceneId": "S2_user_remark_emotion",
+    "modelId": "gpt-6.1-sol",
+    "wireModel": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "reasoning",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11518,
+    "estimatedInputTokens": 10807,
+    "ceilingInputTokens": 12007,
+    "systemSha": "e2eb34508f2795759614a124a3458d95530531433a47729136715e4ff0bc471e",
+    "bodySha": "96c2b2fcac5385b383c92c739b739142b16b6fe29d818acaa4a2a40c1890bbea",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 813
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S3_npc_event_no_cue_cand_deepseek-v4.1-flash",
+    "arm": "cand",
+    "sceneId": "S3_npc_event_no_cue",
+    "modelId": "deepseek-v4.1-flash",
+    "wireModel": "deepseek-v4.1-flash",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "top_p",
+      "thinking",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 12048,
+    "estimatedInputTokens": 11308,
+    "ceilingInputTokens": 12564,
+    "systemSha": "33966b0cbdbb8d73dcb70e3a2a8ea70e3aa4aaeca57dd55af2369e7218b93077",
+    "bodySha": "d8415894187ea16a89afe92fdeb3ad79477dbb9e6f332cfb552559a66c62a7fc",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 951
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 200
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1068
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S3_npc_event_no_cue_cand_gemini-3.8-flash",
+    "arm": "cand",
+    "sceneId": "S3_npc_event_no_cue",
+    "modelId": "gemini-3.8-flash",
+    "wireModel": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "session_id",
+      "include_reasoning",
+      "reasoning",
+      "provider",
+      "service_tier"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11802,
+    "estimatedInputTokens": 11196,
+    "ceilingInputTokens": 12439,
+    "systemSha": "690709aec10df74922d824fc545d704ef76be6a91fdf8bcea3bde24589f98dc8",
+    "bodySha": "c36d76512336f22b4cddf0275ffc23420767766ea186940d0d6552d235008c0e",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1068
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S3_npc_event_no_cue_cand_gpt-6.1-sol",
+    "arm": "cand",
+    "sceneId": "S3_npc_event_no_cue",
+    "modelId": "gpt-6.1-sol",
+    "wireModel": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "reasoning",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11802,
+    "estimatedInputTokens": 11064,
+    "ceilingInputTokens": 12293,
+    "systemSha": "690709aec10df74922d824fc545d704ef76be6a91fdf8bcea3bde24589f98dc8",
+    "bodySha": "0bef100e41b8a5120fcd349b57e1f543c4ae30492dc40509ca37878a3ff97744",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1068
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S4_temporal_state_cand_deepseek-v4.1-flash",
+    "arm": "cand",
+    "sceneId": "S4_temporal_state",
+    "modelId": "deepseek-v4.1-flash",
+    "wireModel": "deepseek-v4.1-flash",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "top_p",
+      "thinking",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11958,
+    "estimatedInputTokens": 11225,
+    "ceilingInputTokens": 12472,
+    "systemSha": "5ee032daff07e171b0906de10633ff0829473358b30bb805f8a1375507d9ef49",
+    "bodySha": "b938532ed68a4ff01505476f850c99b3e049d67761166b976d9ddaa6663c453f",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 951
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 200
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1068
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S4_temporal_state_cand_gemini-3.8-flash",
+    "arm": "cand",
+    "sceneId": "S4_temporal_state",
+    "modelId": "gemini-3.8-flash",
+    "wireModel": "google/gemini-3.8-flash",
+    "provider": "openrouter",
+    "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "session_id",
+      "include_reasoning",
+      "reasoning",
+      "provider",
+      "service_tier"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11712,
+    "estimatedInputTokens": 11113,
+    "ceilingInputTokens": 12347,
+    "systemSha": "bfa5ebc6a05d2eb51780cb0a59653a8b1c6e78d586f24cd3deceee667e3ad022",
+    "bodySha": "19a9cfdd9a788c1e6524d94ba1b00eb3ab439d8b2e34b635b6279cbaa72118d9",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1068
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  },
+  {
+    "caseId": "g7_S4_temporal_state_cand_gpt-6.1-sol",
+    "arm": "cand",
+    "sceneId": "S4_temporal_state",
+    "modelId": "gpt-6.1-sol",
+    "wireModel": "gpt-6.1-sol",
+    "provider": "cheaperinference",
+    "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+    "bodyKeys": [
+      "model",
+      "messages",
+      "stream",
+      "temperature",
+      "stream_options",
+      "reasoning",
+      "reasoning_effort"
+    ],
+    "hasMaxTokens": false,
+    "messageRoles": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "inputChars": 11712,
+    "estimatedInputTokens": 10981,
+    "ceilingInputTokens": 12201,
+    "systemSha": "bfa5ebc6a05d2eb51780cb0a59653a8b1c6e78d586f24cd3deceee667e3ad022",
+    "bodySha": "4bc0d065b354a73a61b0466f2d8245ed7b68c400847425003ab9a20b470980ff",
+    "hasEpisodic": true,
+    "hasCurrentMemory": true,
+    "trackedSections": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "chars": 819
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "chars": 887
+      },
+      {
+        "id": "no-godmodding",
+        "chars": 1096
+      },
+      {
+        "id": "rule-historical-truth-canonical-memory",
+        "chars": 953
+      },
+      {
+        "id": "character-core-identity",
+        "chars": 144
+      },
+      {
+        "id": "identity-and-rules",
+        "chars": 259
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "chars": 1299
+      },
+      {
+        "id": "current-memory",
+        "chars": 1833
+      },
+      {
+        "id": "episodic-memory-retrieved-facts",
+        "chars": 1068
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "chars": 744
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "chars": 796
+      }
+    ]
+  }
+]

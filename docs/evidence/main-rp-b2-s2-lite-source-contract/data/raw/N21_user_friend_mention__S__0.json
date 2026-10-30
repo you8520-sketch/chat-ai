@@ -1,0 +1,46 @@
+{
+ "id": "N21_user_friend_mention",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌이 옛 용병단 동료 도윤은 남쪽에 있으며 곧 편지가 올 거라 전하자, 라이크는 편지를 읽고 도윤을 직접 만나고 싶다고 함. 렌이 도윤을 먼저 소개하겠다고 하자 라이크는 편지가 온 뒤면 충분하다며 기대를 절제하면서도 만남에 관심을 보임. 렌은 편지가 오면 알려 주겠다고 약속했고, 남쪽 소식도 궁금하다고 밝힘. 라이크는 편지가 도윤의 안부도 알려 줄 것이라며 재촉 없이 여관 문 쪽으로 동행함. 아직 편지 도착이나 도윤의 방문은 확인되지 않음.\",\"items\":[{\"actor\":\"user\",\"kind\":\"claim\",\"turn\":1,\"sourceRole\":\"user\",\"quote\":\"예전 용병단 친구 중에 도윤이라는 녀석이 있어. 지금은 남쪽에 있는데, 곧 편지가 올 거야.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"그 친구를 만나 보고 싶다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"도윤이 오면 너한테 먼저 소개할게.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"편지가 오면 알려 줄게. 남쪽 소식도 궁금하니까.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"도윤이 남쪽에서 무사한지도 알 수 있겠군.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2878,
+  "outputTokens": 399,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2876,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000363,
+  "upstreamCostUsd": 0.000363,
+  "debugRawUsage": {
+   "completion_tokens": 399,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2878,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2876,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3277,
+   "cost": 0.000363,
+   "cost_details": {
+    "upstream_inference_cost": 0.000363
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "686a5462-5d93-4433-a980-01b562f1fe37"
+ },
+ "billedUsd": 0.000363,
+ "ms": 4527,
+ "systemChars": 3460,
+ "userChars": 2005
+}

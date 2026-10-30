@@ -1,0 +1,46 @@
+{
+ "id": "FX46",
+ "arm": "F",
+ "rep": 1,
+ "text": "렌의 잡담에 라이크가 차례로 장작을 쌓아 46번째부터 50번째까지 모음. 관계나 상태 변화는 없었음.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 41,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000023,
+  "upstreamCostUsd": 0.000023,
+  "debugRawUsage": {
+   "completion_tokens": 41,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1548
+   },
+   "total_tokens": 1591,
+   "cost": 0.000023,
+   "cost_details": {
+    "upstream_inference_cost": 0.000023
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "b8e6ccf1-504a-4bf5-8df8-3c1403dc8260"
+ },
+ "billedUsd": 0.000023,
+ "ms": 2839,
+ "systemChars": 2503,
+ "userChars": 584
+}

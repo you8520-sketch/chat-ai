@@ -1,0 +1,46 @@
+{
+ "id": "FX66",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌이 잡담을 이어가자 라이크가 장작을 하나씩 쌓아 66개에서 70개까지 늘림.",
+ "usage": {
+  "inputTokens": 1550,
+  "outputTokens": 34,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1548,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000136,
+  "upstreamCostUsd": 0.000136,
+  "debugRawUsage": {
+   "completion_tokens": 34,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1550,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1548,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1584,
+   "cost": 0.000136,
+   "cost_details": {
+    "upstream_inference_cost": 0.000136
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "75da387c-62f2-460b-9005-a95bcae9b0dd"
+ },
+ "billedUsd": 0.000136,
+ "ms": 2211,
+ "systemChars": 2503,
+ "userChars": 584
+}

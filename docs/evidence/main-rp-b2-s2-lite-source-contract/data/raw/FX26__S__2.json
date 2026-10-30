@@ -1,0 +1,46 @@
+{
+ "id": "FX26",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"렌이 잡담을 이어가는 동안 라이크는 26~29번째 장작을 차례로 쌓음. 렌이 커피를 마시자 라이크는 말없이 커피를 저음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":26,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 26번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":27,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 27번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":28,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 28번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":29,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 29번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":30,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 말없이 커피를 저었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1984,
+  "outputTokens": 266,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1982,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000099,
+  "upstreamCostUsd": 0.000099,
+  "debugRawUsage": {
+   "completion_tokens": 266,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1984,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1982
+   },
+   "total_tokens": 2250,
+   "cost": 0.000099,
+   "cost_details": {
+    "upstream_inference_cost": 0.000099
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "f983ec48-468f-42a3-99a0-bb7052b6fec0"
+ },
+ "billedUsd": 0.000099,
+ "ms": 3295,
+ "systemChars": 3460,
+ "userChars": 615
+}

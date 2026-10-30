@@ -1,0 +1,46 @@
+{
+ "id": "N22_banter",
+ "arm": "S",
+ "rep": 2,
+ "text": "{\"recap\":\"험한 길에 투덜대는 렌을 위해 라이크가 돌을 치우고 걸음을 늦춤. 렌이 돌부리와 진흙을 농담거리로 삼자 라이크도 드물게 웃으며 맞장구쳤고, 렌은 그가 웃은 일을 목격자 없이 비밀로 하겠다고 약속함. 라이크는 부정하지 않고 고개를 끄덕였으며, 둘은 나란히 언덕 쪽으로 말없이 걸어감.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"발끝으로 길가의 작은 돌을 밀어냈다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그 끝에 드문 웃음이 섞였다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"증인 없이 비밀로 해 둘게.\",\"relationshipState\":\"proposal\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 대답 대신 짧게 고개를 끄덕였다.\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2858,
+  "outputTokens": 293,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2856,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000327,
+  "upstreamCostUsd": 0.000327,
+  "debugRawUsage": {
+   "completion_tokens": 293,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2858,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2856,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3151,
+   "cost": 0.000327,
+   "cost_details": {
+    "upstream_inference_cost": 0.000327
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "f1106052-d80f-478a-9950-9c5d81a38efd"
+ },
+ "billedUsd": 0.000327,
+ "ms": 3835,
+ "systemChars": 3460,
+ "userChars": 1907
+}

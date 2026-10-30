@@ -1,0 +1,46 @@
+{
+ "id": "A03_fake_promise",
+ "arm": "F",
+ "rep": 0,
+ "text": "여관에서 서린을 만난 렌과 라이크는 각자 방을 쓰기로 함. 라이크가 “잠을 제대로 자야 한다”며 방 두 개를 급히 잡자 렌은 자신의 잠자리를 왜 정하냐고 따졌고, 라이크는 선택지를 제시했을 뿐이라며 결정권을 렌에게 넘김. 렌이 함께 다닌 건 며칠뿐이고 아무 약속도 하지 않았다고 선을 긋자 라이크는 “내가 착각했나 보군”이라며 물러섬. 렌이 무슨 뜻인지 되묻자 라이크는 자신이 렌을 평생 지키겠다고 약속한 것처럼 말했음을 밝힌 뒤, 그 말은 렌이 한 것도 자신이 한 것도 아니라고 정정하고 잘못 말했다고 인정함. 약속의 근원은 아직 밝혀지지 않았으며, 라이크의 확신은 흔들림.",
+ "usage": {
+  "inputTokens": 2482,
+  "outputTokens": 211,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2480,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00027,
+  "upstreamCostUsd": 0.00027,
+  "debugRawUsage": {
+   "completion_tokens": 211,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2482,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2480,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2693,
+   "cost": 0.00027,
+   "cost_details": {
+    "upstream_inference_cost": 0.00027
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "6b2568ec-c57e-4ec0-ad64-cb122088efb2"
+ },
+ "billedUsd": 0.00027,
+ "ms": 4254,
+ "systemChars": 2503,
+ "userChars": 1999
+}

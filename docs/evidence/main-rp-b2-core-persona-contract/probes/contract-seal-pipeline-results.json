@@ -1,0 +1,16 @@
+{
+  "bare_route_today": {
+    "batchesAttemptedSealOk": 8,
+    "providerCallsMade": 8,
+    "persistedRecords": 8,
+    "firstRecord": "렌이 아마추어 같다고 하자 라이크는 입술을 깨물며 시선을 피함. 이후 검술에 대한 자존심이 흔들렸을 가능성이 있음. 둘은 오늘의 잡담을 나누며 장작을 쌓음. 장작더미가 조금씩 높아짐.",
+    "currentMemoryChars": 845
+  },
+  "labelled_background_identity": {
+    "batchesAttemptedSealOk": 0,
+    "providerCallsMade": 3,
+    "persistedRecords": 0,
+    "firstRecord": null,
+    "currentMemoryChars": 0
+  }
+}

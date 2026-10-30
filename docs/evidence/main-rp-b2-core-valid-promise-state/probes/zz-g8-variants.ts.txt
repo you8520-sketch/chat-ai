@@ -1,0 +1,103 @@
+/**
+ * Gate 8 candidate renderers (scratch harness only; never committed to src/).
+ * - B3 = the Gate 7 pure regrouping (whole ledger -> "unverified"); kept only for deterministic comparison.
+ * - K2 = ledger promise rows rebuilt from extractor-supplied verbatim evidence quotes that were
+ *   verified by the REAL evaluateEpisodicFactEvidence (anchors in dump-*.json). Quote-only rows, no gloss.
+ *   Role is used only to name the speaker of the message the quote was verified in. Acceptance,
+ *   cancellation target and relationship state are NOT decided here; quotes are shown side by side.
+ */
+import { LTM_ABSOLUTE_FACTS_RULE } from "@/lib/deepseekPromptStructure";
+
+export const CUR_LEDGER_HEADER = "[Memory — 참고, 우선순위 2순위 하위]";
+const CUR_SUMMARY_HEADER_RE = /^\[현재기억\]\n[^\n]*\n/;
+
+export const B3_SUMMARY_HEADER =
+  "[서사 요약]\n이전 구간의 감정·관계 흐름을 서술로 요약한 것이다. 세부 사건은 이 요약만으로 단정하지 않고 [장면 기록]·정본과 맞춰 쓴다.";
+export const B3_LEDGER_HEADER = "[미검증 기록 — 원문 근거 없음]";
+export const B3_LTM_PREAMBLE = "이 항목은 과거 기억 자료이며 항목마다 성격이 다르다. 각 항목의 머리말에 따라 다룬다.";
+
+export function b3Summary(text: string): string {
+  if (!text) return text;
+  if (!CUR_SUMMARY_HEADER_RE.test(text)) throw new Error("UNEXPECTED_SUMMARY_HEADER");
+  return text.replace(CUR_SUMMARY_HEADER_RE, `${B3_SUMMARY_HEADER}\n`);
+}
+
+export function b3Ledger(ledger: string): string {
+  if (!ledger) return ledger;
+  if (!ledger.startsWith(CUR_LEDGER_HEADER)) throw new Error("UNEXPECTED_LEDGER_HEADER");
+  return ledger.replace(CUR_LEDGER_HEADER, B3_LEDGER_HEADER);
+}
+
+export function b3LtmPreamble(systemText: string): string {
+  return systemText.includes(LTM_ABSOLUTE_FACTS_RULE)
+    ? systemText.replace(LTM_ABSOLUTE_FACTS_RULE, B3_LTM_PREAMBLE)
+    : systemText;
+}
+
+export const K2_PROMISE_HEADER = "[관계 정본 — 약속 (메시지 원문 인용이 검증된 항목)]";
+export const K2_CANCEL_HEADER =
+  "[약속 철회·취소 발언 원문 — 어느 약속에 대한 것인지는 전후 맥락으로 판단하고, 철회된 약속은 이행 대상으로 쓰지 않는다]";
+export const K2_UNVERIFIED_HEADER = "[미검증 기록 — 원문 근거 없음, 사실로 단정하지 않는다]";
+
+const AUTHORITY_LABEL: Record<string, string> = {
+  USER_EXPLICIT: "유저가 직접 쓴 원문",
+  CURRENT_SCENE: "AI가 쓴 장면 원문",
+  CHARACTER_CLAIM: "캐릭터 발언(미확정 주장)",
+};
+
+export type K2Anchor = {
+  kind: "add" | "remove";
+  turn: number;
+  text: string;
+  deadline?: string;
+  decision: {
+    accepted: boolean;
+    evidence?: { role: "user" | "assistant"; quote: string; authority: string };
+  };
+};
+
+export type K2Names = { char: string; persona: string };
+
+function speaker(role: "user" | "assistant", names: K2Names): string {
+  return role === "user" ? names.persona : names.char;
+}
+
+function quoteRow(a: K2Anchor, names: K2Names): string {
+  const ev = a.decision.evidence!;
+  const label = AUTHORITY_LABEL[ev.authority];
+  if (!label) throw new Error(`UNKNOWN_AUTHORITY_${ev.authority}`);
+  return `- [T${a.turn}] [${label} · ${speaker(ev.role, names)}] “${ev.quote}”`;
+}
+
+export function k2Ledger(
+  ledger: string,
+  promises: { text: string; deadline?: string }[],
+  anchors: K2Anchor[],
+  names: K2Names
+): string {
+  if (!ledger) return ledger;
+  if (!ledger.startsWith(CUR_LEDGER_HEADER)) throw new Error("UNEXPECTED_LEDGER_HEADER");
+  const accepted = anchors.filter((a) => a.decision.accepted && a.decision.evidence);
+  const verified: string[] = [];
+  const unverified: string[] = [];
+  for (const p of promises) {
+    const anchor = accepted.find((a) => a.kind === "add" && a.text === p.text);
+    if (anchor) {
+      const deadline = p.deadline ? ` (기한: ${p.deadline})` : "";
+      verified.push(`${quoteRow(anchor, names)}${deadline}`);
+    } else {
+      unverified.push(p.deadline ? `${p.text} (기한: ${p.deadline})` : p.text);
+    }
+  }
+  const cancels = accepted.filter((a) => a.kind === "remove").map((a) => quoteRow(a, names));
+  const otherLines = ledger
+    .split("\n")
+    .slice(1)
+    .filter((l) => l.trim() !== "" && !l.startsWith("약속:") && l !== "관계:");
+  const out: string[] = [];
+  if (verified.length > 0) out.push(K2_PROMISE_HEADER, ...verified);
+  if (cancels.length > 0) out.push(K2_CANCEL_HEADER, ...cancels);
+  if (unverified.length > 0) out.push(K2_UNVERIFIED_HEADER, `약속: ${unverified.join(" · ")}`);
+  if (otherLines.length > 0) out.push(CUR_LEDGER_HEADER, ...otherLines);
+  return out.join("\n");
+}

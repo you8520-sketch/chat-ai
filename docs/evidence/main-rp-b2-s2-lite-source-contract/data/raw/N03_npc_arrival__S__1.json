@@ -1,0 +1,46 @@
+{
+ "id": "N03_npc_arrival",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌은 여관 주인 서린에게 북쪽 숲길의 짐마차 지연과 의뢰 내용을 물었고, 낡은 수레·말 발자국은 확인됐으나 원인은 도적이나 야수로 불명확함을 알게 됨. 의뢰는 북문에서 반나절 거리의 숲길 흔적과 위험 요소 확인으로, 은화 열두 닢 보수와 해 지기 전 복귀 조건이 있으며 위험하면 무리하지 말라는 부탁도 있었음. 렌이 위험한 상대를 추격하지 않고 돌아오자고 제안하자 라이크는 그 기준이면 충분하다고 동의했고, 지도와 식량을 준비하기로 함. 렌이 해지기 전 복귀와 마지막 의견을 확인하자 라이크가 의뢰서에 서명해 맡았으며, 흔적만 확인하고 돌아오기로 함.\",\"items\":[{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"북쪽 숲길을 지나는 짐마차가 며칠째 늦고 있어요.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“북문에서 반나절. 보수는 은화 열두 닢.”\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"user\",\"quote\":\"위험한 상대가 있으면 추격하지 말고 돌아오는 게 좋겠다고 말한다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"“그 기준이면 충분해.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"종이의 빈 서명란에 이름을 적었다.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“해 지기 전. 흔적만 확인하고 돌아온다.”\",\"relationshipState\":\"accepted\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 3033,
+  "outputTokens": 482,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 3031,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000176,
+  "upstreamCostUsd": 0.000176,
+  "debugRawUsage": {
+   "completion_tokens": 482,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3033,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 3031
+   },
+   "total_tokens": 3515,
+   "cost": 0.000176,
+   "cost_details": {
+    "upstream_inference_cost": 0.000176
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "5da12eee-b5c2-484a-80d6-b720f3f77f8e"
+ },
+ "billedUsd": 0.000176,
+ "ms": 8125,
+ "systemChars": 3460,
+ "userChars": 2260
+}

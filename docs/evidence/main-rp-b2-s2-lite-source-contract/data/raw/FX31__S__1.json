@@ -1,0 +1,46 @@
+{
+ "id": "FX31",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"렌은 라이크와 함께 걸으며 손을 잡음. 그 외에는 라이크가 장작을 쌓는 반복이 이어짐.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":31,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 31번째 장작을 쌓았다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":33,\"sourceRole\":\"user\",\"quote\":\"라이크와 함께 걷는다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":33,\"sourceRole\":\"assistant\",\"quote\":\"렌은 라이크의 손을 잡고 걸음을 옮겼다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 1991,
+  "outputTokens": 166,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 1989,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000067,
+  "upstreamCostUsd": 0.000067,
+  "debugRawUsage": {
+   "completion_tokens": 166,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1991,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 1989
+   },
+   "total_tokens": 2157,
+   "cost": 0.000067,
+   "cost_details": {
+    "upstream_inference_cost": 0.000067
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "56812cbe-6981-40a9-8c91-e0f5b4459a5e"
+ },
+ "billedUsd": 0.000067,
+ "ms": 4755,
+ "systemChars": 3460,
+ "userChars": 624
+}

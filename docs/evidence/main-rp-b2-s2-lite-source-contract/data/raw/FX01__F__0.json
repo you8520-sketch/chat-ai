@@ -1,0 +1,46 @@
+{
+ "id": "FX01",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌이 라이크를 아마추어 같다고 지적하자, 라이크는 부족함을 인정하며 시선을 피함. 렌은 내일까지 검을 갈아 주겠다고 약속했고, 라이크는 고개를 끄덕이며 작게 웃음. 이후 라이크는 장작을 세 번 더 쌓음.",
+ "usage": {
+  "inputTokens": 1576,
+  "outputTokens": 78,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 1574,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000153,
+  "upstreamCostUsd": 0.000153,
+  "debugRawUsage": {
+   "completion_tokens": 78,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 1576,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 1574,
+    "cached_tokens": 0
+   },
+   "total_tokens": 1654,
+   "cost": 0.000153,
+   "cost_details": {
+    "upstream_inference_cost": 0.000153
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "b4b095a1-1559-42fe-9f94-c3d5d65c3983"
+ },
+ "billedUsd": 0.000153,
+ "ms": 4613,
+ "systemChars": 2503,
+ "userChars": 609
+}

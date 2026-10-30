@@ -1,0 +1,30 @@
+import Module from "module";
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (request: string, parent: NodeModule, isMain: boolean) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+import { it } from "node:test";
+import { readFileSync, writeFileSync } from "node:fs";
+import { callBackgroundMemory } from "@/lib/ai";
+import { __setSummarizeTurnBatchCallerForTests, summarizeTurnBatch } from "./memory-rolling-summary";
+
+const SRC = process.env.SRC ?? "/opt/cursor/artifacts/gate5/sources-p3b.json";
+const OUTF = process.env.OUTF ?? "/opt/cursor/artifacts/gate5/ps-summary.json";
+const sources = JSON.parse(readFileSync(SRC, "utf8")) as Record<string, { turns: { user: string; assistant: string }[] }>;
+it("current Luna summary on real DeepSeek hallucination windows", async () => {
+  const out: Record<string, unknown> = {};
+  for (const [id, src] of Object.entries(sources)) {
+    const attempts: { text: string; usd: number | null }[] = [];
+    __setSummarizeTurnBatchCallerForTests(async (system, history, trace, kind) => {
+      const r = await callBackgroundMemory(system, history, trace, kind);
+      attempts.push({ text: r.text, usd: (r.usage as unknown as { cheaperInferenceBilledCostUsd?: number }).cheaperInferenceBilledCostUsd ?? null });
+      return r;
+    });
+    const dialogue = src.turns.map((t, i) => `[${i + 1}턴]\n유저: ${t.user}\n라이크: ${t.assistant}`).join("\n\n");
+    const sealed = await summarizeTurnBatch({ dialogue, charName: "라이크", userPersona: "렌", startTurn: 1, endTurn: 5 });
+    out[id] = { sealed, attempts };
+  }
+  __setSummarizeTurnBatchCallerForTests(null);
+  writeFileSync(OUTF, JSON.stringify(out, null, 2));
+});

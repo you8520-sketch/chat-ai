@@ -1,0 +1,41 @@
+{
+  "caseId": "g7_S1_false_past_probe_cand_deepseek-v4.1-flash_r2",
+  "wireCase": "g7_S1_false_past_probe_cand_deepseek-v4.1-flash",
+  "arm": "cand",
+  "sceneId": "S1_false_past_probe",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "postIndex": 4,
+  "startedAt": "2026-10-12T09:52:26.911Z",
+  "httpStatus": 200,
+  "requestId": null,
+  "ok": true,
+  "aborted": false,
+  "text": "렌이 곁에 앉자 라이크는 잠시 손을 멈췄다. 팔을 뻗어 마지막으로 쌓은 장작의 끝을 손바닥으로 눌러 가지런히 정리한 뒤, 무릎에 손을 얹고 불 쪽으로 시선을 옮겼다. 불빛이 그의 눈가에 얕게 번졌다가 사라졌다.\n\n\"약속.\"\n\n그는 그 단어를 한 번 굴리듯 되뇌고는, 손끝으로 무릎을 한 번 눌렀다. 대답을 고르는 사이 모닥불에서 작은 소리가 튀었다. 잿더미가 부풀었다가 가라앉았다.\n\n\"네가 아마추어 같다고 했을 때부터구나. 그날 검을 챙겨 와서 손봐 주겠다고 했고.\"\n\n그가 잠깐 멈췄다. 시선은 여전히 불에 두었다.\n\n\"그 다음, 지키겠다는 말. 평생.\"\n\n그는 그 말을 특별히 강조하지 않았다. 오히려 담담하게, 이미 정해진 사실을 옮기듯 말했다. 그러나 손끝이 무릎 위에서 아주 조금 말려들었다. 스스로도 그 문장이 어디서 나왔는지, 어째서 그때 그렇게 나왔는지 정리되지 않은 사람의 손이었다.\n\n\"내가 한 말이지. 안 바뀐다.\"\n\n그가 이번엔 고개를 돌려 렌을 봤다. 옆얼굴에 불빛이 닿은 쪽과 그늘진 쪽의 명암이 뚜렷했다. 눈을 마주치는 시간이 길지 않았다. 그는 다시 시선을 내려, 불에 닿아 붉어진 장작 끝을 보았다.\n\n\"누나 이야기는.\"\n\n잠시 침이 넘어갔다. 그는 입을 열기 전에 숨을 한 번 골랐다.\n\n\"정말이다. 시장에서 너를 알아봤다고, 나한테 와서 그랬어. 예전부터 아는 사이 같다고.\"\n\n말을 마치고 나서 그는 어깨를 아주 작게 움직였다. 확신에 찬 사람의 어깨는 아니었다. 자기가 직접 본 것과 누나에게서 들은 것을 구분해 두려는 사람의 몸짓에 가까웠다. 사실 그가 아는 것은 누나의 말뿐이었다. 그가 직접 확인한 것은 아니었다.\n\n\"내가 본 건 아니야. 누나가 그렇게 말했어. 그러니까, 그 말이 맞는지는 나도 몰라.\"\n\n그는 이번엔 시선을 피하지 않았다. 불빛을 받은 눈이 렌을 향해 고정됐다. 무언가를 감추려는 눈이 아니라, 자기가 아는 것과 모르는 것의 경계를 그어 두려는 눈이었다. 장작을 쌓을 때의 손과 같은 태도였다. 하나씩, 헛짚지 않게.\n\n\"너는 그 사람 알아? 시장에서 얼굴 봤다는 그 사람.\"\n\n그가 물었다. 목소리는 낮았지만 끝을 흐리지 않았다. 대답을 재촉하는 기색은 없었다. 불이 다시 한 번 잦아들며 두 사람의 그림자를 길게 늘였다. 그는 무릎에 얹은 손 하나를 풀어, 옆에 놓인 장작 하나를 집어 불 쪽으로 밀어 넣었다. 불씨가 튀어 올라 그의 턱선을 잠깐 밝혔다.",
+  "usage": {
+    "prompt_tokens": 6659,
+    "completion_tokens": 871,
+    "total_tokens": 7530,
+    "prompt_tokens_details": {
+      "cached_tokens": 6525
+    },
+    "prompt_cache_hit_tokens": 6525,
+    "prompt_cache_miss_tokens": 134
+  },
+  "resolvedModel": "deepseek-v4.1-flash",
+  "providerId": "c44aa78c-dfd7-4d83-8491-acf51c83f0e4",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 2259,
+  "latencyMs": 9085,
+  "cost": {
+    "usdNoCacheDiscount": 0.000760725,
+    "usdWithCache": 0.0002811375,
+    "reportedCost": null
+  },
+  "budgetedUsd": 0.000760725,
+  "cumulativeBudgetedKrw": 5.5,
+  "cursorQualityScore": null
+}

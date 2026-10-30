@@ -1,0 +1,46 @@
+{
+ "id": "N21_user_friend_mention",
+ "arm": "F",
+ "rep": 0,
+ "text": "렌이 옛 용병단 동료 도윤이 남쪽에 있으며 편지가 곧 올 거라고 하자, 라이크는 편지를 읽고 싶어 했고 직접 만나 보고 싶다고 밝힘. 렌은 도윤이 말 많고 사람을 잘 웃기는 성격이라 라이크와 다르다며, 도착 시 먼저 소개하겠다고 약속함. 라이크는 렌이 오래 알고 지낸 사람을 직접 알아보고 싶다고 했고, 편지에 방문 시기가 적혀 있길 기대하면서도 아직 도윤의 방문이 확정된 건 아니라고 선을 그음. 렌이 편지가 오면 알려 주겠다고 하자 라이크도 알겠다고 답함. 두 사람은 함께 여관 문으로 향했으며, 라이크는 도윤과 남쪽의 안부를 조용히 궁금해함.",
+ "usage": {
+  "inputTokens": 2442,
+  "outputTokens": 190,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2440,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.00026,
+  "upstreamCostUsd": 0.00026,
+  "debugRawUsage": {
+   "completion_tokens": 190,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2442,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2440,
+    "cached_tokens": 0
+   },
+   "total_tokens": 2632,
+   "cost": 0.00026,
+   "cost_details": {
+    "upstream_inference_cost": 0.00026
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "ff9a7e43-0f20-48d2-ac77-0be7bc680f2d"
+ },
+ "billedUsd": 0.00026,
+ "ms": 3526,
+ "systemChars": 2503,
+ "userChars": 1972
+}

@@ -1,0 +1,46 @@
+{
+ "id": "N16_duel",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"광장에서 렌이 지켜보는 가운데 청년이 라이크에게 목검 대련을 청하자, 라이크는 허리의 검을 내려놓고 연습용 목검으로 응함. 청년의 첫 공격을 흘린 뒤 발이 먼저 나간다고 조언했고, 신중해진 공격에는 “좋아졌습니다”라며 칭찬하면서도 빈틈을 이용하지 않고 거리를 내줌. 렌이 무심코 다가선 순간 청년의 마지막 공격을 무장 해제로 끝내 승리함. 청년이 패배를 인정하자 손을 잡아 일으키고 목검을 건네며 마지막 공격을 칭찬함. 대련 뒤 렌에게 “끝났습니다”라고 알리고 여관 쪽으로 향하려 함. 라이크의 절제되고 배려 있는 태도가 대련 내내 드러났으며, 렌은 이를 지켜봄.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"대신 옆에 놓인 연습용 목검을 집어 들고 한 걸음 물러섰다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"“발이 먼저 나갑니다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"“좋아졌습니다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"손목을 부드럽게 돌리자 상대의 목검이 바닥에 떨어졌다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“마지막 공격은 좋았습니다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"“끝났습니다.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 3024,
+  "outputTokens": 470,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 3022,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000398,
+  "upstreamCostUsd": 0.000398,
+  "debugRawUsage": {
+   "completion_tokens": 470,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 3024,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 3022,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3494,
+   "cost": 0.000398,
+   "cost_details": {
+    "upstream_inference_cost": 0.000398
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "95b6f8ea-e86d-4c96-a2bc-073f58e1aae7"
+ },
+ "billedUsd": 0.000398,
+ "ms": 6003,
+ "systemChars": 3460,
+ "userChars": 2181
+}

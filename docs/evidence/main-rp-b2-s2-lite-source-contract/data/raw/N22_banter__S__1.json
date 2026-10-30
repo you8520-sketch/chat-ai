@@ -1,0 +1,46 @@
+{
+ "id": "N22_banter",
+ "arm": "S",
+ "rep": 1,
+ "text": "{\"recap\":\"험한 길에서 렌이 돌부리와 진흙을 농담거리로 삼자, 라이크는 돌을 치우고 보폭을 늦춰 렌과 나란히 걸음. 렌이 돌과 칼로 협상하겠다며 라이크에게 증인을 부탁하자 드물게 웃고 받아쳤으며, 렌이 그 웃음을 지적하자 부정하기보다 화제를 접으려 함. 렌은 비밀로 하겠다며 더 놀리지 않았고, 둘은 같은 보폭으로 낮은 언덕을 향해 어색하지 않은 침묵 속에 걸어감.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":1,\"sourceRole\":\"assistant\",\"quote\":\"발끝으로 길가의 작은 돌을 밀어냈다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"assistant\",\"quote\":\"그 끝에 드문 웃음이 섞였다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"“알았어. 증인 없이 비밀로 해 둘게.”\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 대답 대신 짧게 고개를 끄덕였다.\",\"relationshipState\":\"none\",\"eventStatus\":\"none\"}]}",
+ "usage": {
+  "inputTokens": 2858,
+  "outputTokens": 324,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2856,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000123,
+  "upstreamCostUsd": 0.000123,
+  "debugRawUsage": {
+   "completion_tokens": 324,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2858,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2856
+   },
+   "total_tokens": 3182,
+   "cost": 0.000123,
+   "cost_details": {
+    "upstream_inference_cost": 0.000123
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "9ebdf527-6286-41ae-b5f3-b1fc2dfe3721"
+ },
+ "billedUsd": 0.000123,
+ "ms": 4111,
+ "systemChars": 3460,
+ "userChars": 1907
+}

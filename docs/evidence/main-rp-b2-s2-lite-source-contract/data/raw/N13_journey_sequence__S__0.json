@@ -1,0 +1,46 @@
+{
+ "id": "N13_journey_sequence",
+ "arm": "S",
+ "rep": 0,
+ "text": "{\"recap\":\"렌과 라이크는 함께 시장을 돌며 식량, 라이크의 낡은 칼집 끈, 횃불 심지를 샀고 라이크가 비용을 치르고 짐을 나눠 들었음. 렌이 자루를 건네자 라이크가 받아 여관까지 운반했으며, 렌이 서린에게 저녁을 묻기로 하자 먼저 말하라고 함. 여관에서 렌이 남은 저녁을 물어 서린이 수프를 데워 주기로 했고, 라이크는 사 온 빵을 어디에 둘지 물으며 짐을 카운터 옆에 내려놓음.\",\"items\":[{\"actor\":\"character\",\"kind\":\"event\",\"turn\":2,\"sourceRole\":\"assistant\",\"quote\":\"동전 몇 닢을 세어 건넸다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":3,\"sourceRole\":\"user\",\"quote\":\"끈을 산 뒤 렌은 횃불 심지도 챙겼다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"character\",\"kind\":\"event\",\"turn\":4,\"sourceRole\":\"assistant\",\"quote\":\"라이크는 자루를 받아 어깨에 걸쳤다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"user\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"user\",\"quote\":\"렌은 여관 문을 밀며 서린을 불렀다.\",\"relationshipState\":\"none\",\"eventStatus\":\"historical\"},{\"actor\":\"npc\",\"kind\":\"event\",\"turn\":5,\"sourceRole\":\"assistant\",\"quote\":\"남은 수프는 있어. 데워 줄게.\",\"relationshipState\":\"none\",\"eventStatus\":\"active\"}]}",
+ "usage": {
+  "inputTokens": 2954,
+  "outputTokens": 378,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheWriteTokens": 2952,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000362,
+  "upstreamCostUsd": 0.000362,
+  "debugRawUsage": {
+   "completion_tokens": 378,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2954,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 2952,
+    "cached_tokens": 0
+   },
+   "total_tokens": 3332,
+   "cost": 0.000362,
+   "cost_details": {
+    "upstream_inference_cost": 0.000362
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "72178a72-ab53-495d-b586-af255c57d88d"
+ },
+ "billedUsd": 0.000362,
+ "ms": 9608,
+ "systemChars": 3460,
+ "userChars": 2030
+}
