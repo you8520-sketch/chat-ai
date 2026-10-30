@@ -1,3 +1,4 @@
+import { parseTrpgBotStructuredAction } from "./botStructuredOutput";
 import { canonicalRoomId, explorationCommandsFromMovementBody, type ExplorationMap } from "./explorationMap";
 import type { ExplorationCommand } from "./explorationPublic";
 import { parseTrpgBotAction, TRPG_BOT_INTENT_OPEN } from "./botActionParse";
@@ -58,7 +59,8 @@ function readProseIntentMoveRoomIds(map: ExplorationMap, rawProviderText: string
   proseMoveRoomIds: string[];
   intentMoveRoomIds: string[];
 } {
-  const parsed = parseTrpgBotAction(rawProviderText);
+  const structured = parseTrpgBotStructuredAction(rawProviderText);
+  const parsed = structured ?? parseTrpgBotAction(rawProviderText);
   const proseMoveRoomIds = commandRoomIds(explorationCommandsFromMovementBody(map, parsed.prose));
   const intentBody = parsed.intent.trim()
     ? `${TRPG_BOT_INTENT_OPEN}\n${parsed.intent.trim()}`

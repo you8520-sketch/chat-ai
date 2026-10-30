@@ -41,6 +41,7 @@ import {
 } from "./aiCharacterContext";
 import {
   buildTrpgBotActionUserBlock,
+  buildTrpgBotSystem,
   orderTrpgBotsForRound,
   parseTrpgBotAction,
   prepareTrpgBotActionBody,
@@ -48,6 +49,11 @@ import {
   TRPG_BOT_INTENT_OPEN,
   TRPG_BOT_SYSTEM,
 } from "./botActions";
+import {
+  buildTrpgBotResponseFormat,
+  formatTrpgBotStructuredAsBody,
+  parseTrpgBotStructuredAction,
+} from "./botStructuredOutput";
 import { actionReferencesOpenRoute } from "./actionCheckContext";
 import { gmAiActionText, isLockedSpokenLine, resolveTrpgCanonicalAttempt, stayWatchingInPlace } from "./canonicalAttempt";
 import {
@@ -68,15 +74,20 @@ import {
   type BotExplorationLockOutcome,
 } from "./botExplorationLockDiagnostic";
 import {
+  BOT_EXPLORATION_NO_MOVE,
   canonicalRoomId,
+  commandsFromBotMovePlan,
   composeExplorationSentences,
   displayExplorationAp,
   explorationCommandsFromMovementBody,
+  explorationHasMap,
   explorationOwnsWorldFlags,
   explorationRoomNames,
+  explorationStartName,
   filterExplorationFlagsAdd,
   filterExplorationFlagsRemove,
   legalExplorationCommands,
+  legalExplorationMovePlans,
   legacyPartyEscapeFact,
   roomNameAfterCommands,
   splitV2ExplorationMethod,
@@ -1322,9 +1333,7 @@ async function generateBotActions(
        WHERE s.round_id=? AND p.kind='human' AND s.locked=1`
     )
     .all(opts.roundId) as { body: string; name: string }[];
-  const botCall =
-    opts.deps?.botCall ??
-    (async (system: string, user: string) => callTrpgBot({ system, user }));
+  const injectedBotCall = opts.deps?.botCall;
   const parts = loadParticipants(db, opts.campaign.id);
   const pending = opts.botIds
     .map((id) => parts.find((p) => p.id === id))
@@ -1424,20 +1433,64 @@ async function generateBotActions(
       speakCount: ordered.length,
       relationshipBrief: opts.campaign.relationship_brief ?? "",
     });
-    const { text, usage } = await botCall(TRPG_BOT_SYSTEM, user);
+    const latestMap = loadExplorationState(db, opts.campaign.id);
+    const plans =
+      latestMap && explorationHasMap(latestMap.map)
+        ? legalExplorationMovePlans({
+            state: latestMap,
+            fromRoomId: self?.location?.trim() || explorationStartName(latestMap),
+            apRemaining: displayExplorationAp(latestMap, bot.id, roundNumber),
+          })
+        : [];
+    const useStructuredWire = plans.length > 0;
+    const system = useStructuredWire && !injectedBotCall ? buildTrpgBotSystem({ structured: true }) : TRPG_BOT_SYSTEM;
+    const { text, usage } = injectedBotCall
+      ? await injectedBotCall(system, user)
+      : await callTrpgBot({
+          system,
+          user,
+          responseFormat: useStructuredWire ? buildTrpgBotResponseFormat(plans.map((plan) => plan.token)) : undefined,
+        });
+    const structured = parseTrpgBotStructuredAction(text);
     const body = prepareTrpgBotActionBody(
-      text,
+      structured ? formatTrpgBotStructuredAsBody(structured) : text,
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`
     );
-    const latestMap = loadExplorationState(db, opts.campaign.id);
-    const declared = latestMap ? explorationCommandsFromMovementBody(latestMap.map, body) : [];
-    const declaredRoomIds = moveCommandRoomIds(declared);
+    let declared: ExplorationCommand[] = [];
+    let structuredPlanValid = false;
+    let fallbackBranch = "no-declared-moves";
+    if (structured && latestMap) {
+      const planCommands = commandsFromBotMovePlan(plans, structured.movePlan);
+      if (planCommands == null) {
+        fallbackBranch = "invalid-structured-plan";
+      } else {
+        declared = planCommands;
+        structuredPlanValid = true;
+      }
+    } else if (latestMap) {
+      declared = explorationCommandsFromMovementBody(latestMap.map, body);
+    }
+    const declaredRoomIds =
+      structured && !structuredPlanValid && structured.movePlan && structured.movePlan !== BOT_EXPLORATION_NO_MOVE
+        ? structured.movePlan.split(">").filter(Boolean)
+        : moveCommandRoomIds(declared);
     let spoken = body;
     let lockOutcome: BotExplorationLockOutcome = "original-locked";
-    let fallbackBranch = "no-declared-moves";
     let firstRejectCode: string | null = null;
     let retryRejectCode: string | null = null;
     let legalRoomIds: string[] = [];
+    const structuredFreeText = structured
+      ? sanitizeBotActionText(
+          [
+            omitLiveMovementClauses(structured.prose),
+            omitLiveMovementClauses(structured.intent)
+              ? `${TRPG_BOT_INTENT_OPEN}\n${omitLiveMovementClauses(structured.intent)}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n\n")
+        )
+      : body;
     if (declared.length > 0) {
       try {
         spoken = db.transaction(() => {
@@ -1446,7 +1499,7 @@ async function generateBotActions(
             roundId: opts.roundId,
             participantId: bot.id,
             commands: declared,
-            freeText: body,
+            freeText: structuredPlanValid ? structuredFreeText : body,
           });
           assertTrpgActionMaxChars(prepared.body);
           upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
@@ -1454,87 +1507,144 @@ async function generateBotActions(
           return prepared.body;
         })();
         lockOutcome = "move-locked";
-        fallbackBranch = "full-lock";
+        fallbackBranch = structuredPlanValid ? "structured-full-lock" : "full-lock";
         legalRoomIds = declaredRoomIds;
       } catch (error) {
         if (!explorationMoveWasRejected(error)) throw error;
         firstRejectCode = explorationRejectCode(error);
         const fromRoomId = self?.location ?? "";
-        const priced = latestMap
-          ? legalExplorationCommands({
-              state: latestMap,
-              fromRoomId,
-              commands: declared,
-              apRemaining: displayExplorationAp(latestMap, bot.id, roundNumber),
-            })
-          : [];
-        legalRoomIds = moveCommandRoomIds(priced);
-        const remainder = independentBotRemainder({
-          body,
-          here: latestMap ? roomNameAfterCommands(latestMap.map, fromRoomId, priced) : fromRoomId,
-          rooms: latestMap ? explorationRoomNames(latestMap.map) : [],
-          party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
-          actorName: bot.display_name,
-        });
-        const usableRemainder =
-          remainder.text && Array.from(remainder.text).length <= TRPG_ACTION_MAX_CHARS ? remainder.text : "";
-        const moveLine =
-          priced.length > 0 && latestMap ? composeExplorationSentences(latestMap.map, fromRoomId, priced) : "";
-        const combined =
-          moveLine && usableRemainder ? `${moveLine} ${usableRemainder}` : moveLine || usableRemainder;
-        const retryFreeText =
-          usableRemainder && Array.from(combined).length <= TRPG_ACTION_MAX_CHARS ? usableRemainder : "";
-        if (priced.length > 0) {
-          fallbackBranch = "partial-retry";
-          try {
-            spoken = db.transaction(() => {
-              const prepared = prepareLockedExploration(db, {
-                campaignId: opts.campaign.id,
-                roundId: opts.roundId,
-                participantId: bot.id,
-                commands: priced,
-                freeText: retryFreeText,
-              });
-              if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) {
-                throw new Error("행동이 너무 깁니다.");
-              }
-              upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
-              saveExplorationState(db, opts.campaign.id, prepared.state);
-              return prepared.body;
-            })();
-            lockOutcome = "move-locked";
-          } catch (retryError) {
-            if (!explorationMoveWasRejected(retryError)) throw retryError;
-            fallbackBranch = "retry-throw";
-            retryRejectCode = explorationRejectCode(retryError);
+        if (structuredPlanValid) {
+          legalRoomIds = [];
+          fallbackBranch = "structured-rejected";
+          const remainder = independentBotRemainder({
+            body,
+            here: fromRoomId,
+            rooms: latestMap ? explorationRoomNames(latestMap.map) : [],
+            party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
+            actorName: bot.display_name,
+          });
+          const usableRemainder =
+            remainder.text && Array.from(remainder.text).length <= TRPG_ACTION_MAX_CHARS ? remainder.text : "";
+          const locked =
+            usableRemainder &&
+            (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
+              ? canonicalRemainderLock(usableRemainder, remainder.finishedResults)
+              : "";
+          if (locked) {
+            lockOutcome = "original-locked";
+            spoken = locked;
+            upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+          } else {
             lockOutcome = "stay-fallback";
             spoken = stayWatchingInPlace(bot.display_name);
             upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
           }
-        } else if (
-          usableRemainder &&
-          (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
-        ) {
-          const locked = canonicalRemainderLock(usableRemainder, remainder.finishedResults);
-          if (locked) {
-            fallbackBranch = "priced-empty-remainder";
-            lockOutcome = "original-locked";
-            spoken = locked;
-            upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+        } else {
+          const priced = latestMap
+            ? legalExplorationCommands({
+                state: latestMap,
+                fromRoomId,
+                commands: declared,
+                apRemaining: displayExplorationAp(latestMap, bot.id, roundNumber),
+              })
+            : [];
+          legalRoomIds = moveCommandRoomIds(priced);
+          const remainder = independentBotRemainder({
+            body,
+            here: latestMap ? roomNameAfterCommands(latestMap.map, fromRoomId, priced) : fromRoomId,
+            rooms: latestMap ? explorationRoomNames(latestMap.map) : [],
+            party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
+            actorName: bot.display_name,
+          });
+          const usableRemainder =
+            remainder.text && Array.from(remainder.text).length <= TRPG_ACTION_MAX_CHARS ? remainder.text : "";
+          const moveLine =
+            priced.length > 0 && latestMap ? composeExplorationSentences(latestMap.map, fromRoomId, priced) : "";
+          const combined =
+            moveLine && usableRemainder ? `${moveLine} ${usableRemainder}` : moveLine || usableRemainder;
+          const retryFreeText =
+            usableRemainder && Array.from(combined).length <= TRPG_ACTION_MAX_CHARS ? usableRemainder : "";
+          if (priced.length > 0) {
+            fallbackBranch = "partial-retry";
+            try {
+              spoken = db.transaction(() => {
+                const prepared = prepareLockedExploration(db, {
+                  campaignId: opts.campaign.id,
+                  roundId: opts.roundId,
+                  participantId: bot.id,
+                  commands: priced,
+                  freeText: retryFreeText,
+                });
+                if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) {
+                  throw new Error("행동이 너무 깁니다.");
+                }
+                upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
+                saveExplorationState(db, opts.campaign.id, prepared.state);
+                return prepared.body;
+              })();
+              lockOutcome = "move-locked";
+            } catch (retryError) {
+              if (!explorationMoveWasRejected(retryError)) throw retryError;
+              fallbackBranch = "retry-throw";
+              retryRejectCode = explorationRejectCode(retryError);
+              lockOutcome = "stay-fallback";
+              spoken = stayWatchingInPlace(bot.display_name);
+              upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+            }
+          } else if (
+            usableRemainder &&
+            (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
+          ) {
+            const locked = canonicalRemainderLock(usableRemainder, remainder.finishedResults);
+            if (locked) {
+              fallbackBranch = "priced-empty-remainder";
+              lockOutcome = "original-locked";
+              spoken = locked;
+              upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+            } else {
+              fallbackBranch = "priced-empty";
+              lockOutcome = "stay-fallback";
+              spoken = stayWatchingInPlace(bot.display_name);
+              upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+            }
           } else {
             fallbackBranch = "priced-empty";
             lockOutcome = "stay-fallback";
             spoken = stayWatchingInPlace(bot.display_name);
             upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
           }
-        } else {
-          fallbackBranch = "priced-empty";
-          lockOutcome = "stay-fallback";
-          spoken = stayWatchingInPlace(bot.display_name);
-          upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
         }
       }
+    } else if (
+      structured &&
+      latestMap &&
+      (fallbackBranch === "invalid-structured-plan" || declaredMovementGoals(body).length > 0)
+    ) {
+      const remainder = independentBotRemainder({
+        body,
+        here: self?.location ?? "",
+        rooms: explorationRoomNames(latestMap.map),
+        party: sheets.map((sheet) => ({ name: sheet.name, location: sheet.location })),
+        actorName: bot.display_name,
+      });
+      const usableRemainder =
+        remainder.text && Array.from(remainder.text).length <= TRPG_ACTION_MAX_CHARS ? remainder.text : "";
+      const locked =
+        usableRemainder && explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0
+          ? canonicalRemainderLock(usableRemainder, remainder.finishedResults)
+          : "";
+      if (fallbackBranch !== "invalid-structured-plan") fallbackBranch = "structured-no-move";
+      if (locked) {
+        lockOutcome = "original-locked";
+        spoken = locked;
+        upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+      } else {
+        lockOutcome = "stay-fallback";
+        spoken = stayWatchingInPlace(bot.display_name);
+        upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+      }
     } else {
+      if (structuredPlanValid) fallbackBranch = "structured-no-move";
       upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
     }
     if (latestMap) {

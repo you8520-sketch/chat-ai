@@ -36,6 +36,7 @@ import {
   feedGmStructuredStreamParser,
   gmStructuredStreamParserComplete,
 } from "./gmStructuredStreamParser";
+import type { buildTrpgBotResponseFormat } from "./botStructuredOutput";
 import { buildTrpgGmResponseFormat, buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import type { GmProviderTimings } from "./gmNarrationDraft";
 import { feedGmProviderSseBytes } from "./gmProviderSse";
@@ -343,6 +344,7 @@ export function buildTrpgGmProviderRequest(input: {
 export function buildTrpgBotProviderRequest(input: {
   system: string;
   user: string;
+  responseFormat?: ReturnType<typeof buildTrpgBotResponseFormat>;
 }): TrpgProviderRequest {
   const model = TRPG_BOT_MODEL;
   return buildTrpgProviderRequest(model, {
@@ -354,6 +356,7 @@ export function buildTrpgBotProviderRequest(input: {
       stream: false,
       temperature: 0.85,
       max_tokens: TRPG_BOT_MAX_TOKENS,
+      ...(input.responseFormat ? { response_format: input.responseFormat } : {}),
     });
 }
 
@@ -840,13 +843,18 @@ export async function callTrpgBot(opts: {
   system: string;
   user: string;
   timeoutMs?: number;
+  responseFormat?: ReturnType<typeof buildTrpgBotResponseFormat>;
   /** Test seam. Production callers omit this; NODE_TEST_CONTEXT still skips the ledger. */
   persistProviderCostInTests?: boolean;
 }): Promise<TrpgGmCallResult> {
   if (isMockApiMode()) {
     return { text: MOCK_BOT };
   }
-  const request = buildTrpgBotProviderRequest({ system: opts.system, user: opts.user });
+  const request = buildTrpgBotProviderRequest({
+    system: opts.system,
+    user: opts.user,
+    responseFormat: opts.responseFormat,
+  });
   const result = await postTrpgChat({
     request,
     timeoutMs: opts.timeoutMs ?? 90_000,

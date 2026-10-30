@@ -79,6 +79,18 @@ ${TRPG_BOT_INTENT_OPEN}
 
 Locked actions are committed attempts whose mechanical outcomes remain open until round resolution. Build from facts already visible in the scene; when your move depends on another PC's attempted result, keep that dependency conditional until GM resolution.`;
 
+export const TRPG_BOT_STRUCTURED_OUTPUT_TAIL = `Output only the JSON object required by the response schema.
+prose is this character's finished Korean beat using the same [PROSE LAYOUT] rules.
+actionType is one of: attack | defend | investigate | persuade | stealth | support | use_item | free
+intent is one concise third-person concrete attempt. Do not declare a finished result.
+movePlan is exactly one token from Legal move plans. NO_MOVE is a complete choice.
+Do not emit <<<ACTION_TYPE>>> or <<<INTENT>>> markers.`;
+
+export function buildTrpgBotSystem(opts?: { structured?: boolean }): string {
+  if (!opts?.structured) return TRPG_BOT_SYSTEM;
+  return `${TRPG_BOT_SYSTEM.replace(" Korean. No JSON.", " Korean.")}\n\n${TRPG_BOT_STRUCTURED_OUTPUT_TAIL}`;
+}
+
 function nameAliases(name: string): string[] {
   const n = name.trim();
   if (!n) return [];

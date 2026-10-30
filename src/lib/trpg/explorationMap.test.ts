@@ -27,6 +27,8 @@ import {
   formatExplorationGmBlock,
   generateExplorationMap,
   legalExplorationCommands,
+  legalExplorationMovePlans,
+  BOT_EXPLORATION_NO_MOVE,
   priceExplorationCommands,
   projectPublicExploration,
   roomDegree,
@@ -560,6 +562,36 @@ describe("exploration map generation", () => {
           apRemaining: 3,
         }),
       /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+    const plans = legalExplorationMovePlans({ state, fromRoomId: "teahouse", apRemaining: 3 });
+    const tokens = plans.map((plan) => plan.token);
+    assert.ok(tokens.includes(BOT_EXPLORATION_NO_MOVE));
+    assert.ok(tokens.includes("table"));
+    assert.ok(tokens.includes("table>counter"));
+    assert.ok(tokens.includes("table>counter>door"));
+    assert.equal(tokens.includes("door"), false);
+    assert.equal(tokens.includes("table>door"), false);
+    assert.equal(tokens.some((token) => token.startsWith("door")), false);
+    const briefWithPlans = formatExplorationBotBrief({
+      roomId: "모밀찻집",
+      startName: "모밀찻집",
+      neighbors: fromTeahouse.exits,
+      lockedExits: fromTeahouse.lockedExits,
+      summary: fromTeahouse.summary,
+      ap: 3,
+      party: [
+        { name: "렌", location: "출입문" },
+        { name: "권태현", location: "모밀찻집" },
+      ],
+      movePlans: plans,
+    });
+    assert.match(briefWithPlans, /Legal move plans \(choose exactly one token\):/);
+    assert.match(briefWithPlans, /NO_MOVE/);
+    assert.match(briefWithPlans, /table \(중앙 테이블\)/);
+    assert.match(briefWithPlans, /table>counter>door \(중앙 테이블 → 계산대 → 출입문\)/);
+    assert.deepEqual(
+      legalExplorationMovePlans({ state, fromRoomId: "teahouse", apRemaining: 1 }).map((plan) => plan.token),
+      [BOT_EXPLORATION_NO_MOVE, "table"]
     );
   });
 });
