@@ -48,6 +48,32 @@ export function clampAppearanceCompiledText(text: string, raw: string): string {
   return trimmed.length > maxLength ? trimmed.slice(0, maxLength).trimEnd() : trimmed;
 }
 
+const FEATURE_LINE = /^\s*특징\s*[:：]\s*(.+)\s*$/;
+
+export function extractRawAppearanceFeatureItems(raw: string): string[] {
+  const items: string[] = [];
+  for (const line of raw.replace(/\r\n?/g, "\n").split("\n")) {
+    const match = line.match(FEATURE_LINE);
+    if (!match?.[1]) continue;
+    for (const part of match[1].split(/[,，]/)) {
+      const item = part.trim();
+      if (item.length >= 2) items.push(item);
+    }
+  }
+  return items;
+}
+
+/**
+ * Compiled text is usable only when every RAW `특징:` item is present as-is.
+ * Partial word overlap is not treated as preservation; if that cannot be proven, callers use RAW.
+ */
+export function compiledTextPreservesRawFeatures(raw: string, compiledText: string): boolean {
+  const items = extractRawAppearanceFeatureItems(raw);
+  if (items.length === 0) return true;
+  const hay = normalizeAppearanceRaw(compiledText);
+  return items.every((item) => hay.includes(normalizeAppearanceRaw(item)));
+}
+
 export function validateAppearanceCompiledJson(value: unknown, rawForLength = ""): AppearanceCompiledJson | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const out = emptyAppearanceCompiled();
@@ -56,7 +82,11 @@ export function validateAppearanceCompiledJson(value: unknown, rawForLength = ""
     if (typeof v !== "string") return null;
     out[key] = v.trim().slice(0, 500);
   }
-  out.compiled_text = clampAppearanceCompiledText(out.compiled_text, rawForLength);
+  // Clamp only at compile time, when the RAW length budget is known.
+  // parseAppearanceCompiledJson must not re-clamp against empty RAW (that forces 120 chars).
+  if (normalizeAppearanceRaw(rawForLength)) {
+    out.compiled_text = clampAppearanceCompiledText(out.compiled_text, rawForLength);
+  }
   return out;
 }
 
