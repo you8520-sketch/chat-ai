@@ -288,18 +288,26 @@ describe("genre profile owner — genre-generic composition", () => {
     assert.match(modern.voiceUser, /문체: 경쾌하게/);
     assert.match(modern.voiceUser, /유머 비중: 핵심/);
     assert.match(modern.voiceUser, /전개 비중: 대사 중심/);
-    assert.match(modern.part1User, /별명은 name의 괄호 별칭/);
-    assert.match(modern.voiceUser, /정한 별명은 이름·공개 소개·첫 장면/);
-    assert.match(modern.voiceUser, /대사마다 반복하지 않는다/);
+    assert.match(modern.worldPortfolio, /별명은 name의 괄호 별칭/);
+    assert.match(modern.part1User, /identity\.name은 브리프 name을 그대로 유지한다/);
+    assert.ok(!modern.part1User.includes("별명은 name의 괄호 별칭"));
+    assert.match(modern.voiceUser, /주어진 이름\(괄호 별칭이 있으면 포함\)을 공개 소개와 첫 장면/);
+    assert.match(modern.voiceUser, /이름을 새로 정하거나 바꾸지 않으며/);
+    assert.match(modern.voiceUser, /대사마다 별명을 반복하지 않는다/);
+    assert.ok(!modern.voiceUser.includes("별명은 name의 괄호 별칭"));
     assert.ok(!modern.worldCore.includes("이름 방식"));
     assert.ok(!modern.bondsUser.includes("이름 방식"));
     assert.ok(!compose(undefined).part1User.includes("이름 방식"));
     assert.ok(!compose(undefined).voiceUser.includes("이름 방식"));
-    assert.match(modern.worldPortfolio, /별명은 name의 괄호 별칭/);
 
     assert.match(school.worldPortfolio, /별명은 name의 괄호 별칭/);
+    assert.match(school.part1User, /identity\.name은 브리프 name을 그대로 유지한다/);
     assert.match(horror.worldPortfolio, /이름 자체를 말장난으로/);
     assert.match(horror.replacement, /현대 인터넷 유행어를 이세계·시대 배경에 섞지 않는다/);
+    assert.match(horror.part1User, /identity\.name은 브리프 name을 그대로 유지한다/);
+    assert.ok(!horror.part1User.includes("이름 자체를 말장난으로"));
+    assert.match(horror.voiceUser, /주어진 이름\(괄호 별칭이 있으면 포함\)/);
+    assert.ok(!horror.voiceUser.includes("이름 자체를 말장난으로"));
     assert.ok(!/이름 방식/.test(rofan.worldPortfolio));
 
     assert.notEqual(school.part1User, horror.part1User);
