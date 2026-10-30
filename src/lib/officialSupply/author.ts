@@ -1183,6 +1183,38 @@ export function assertPortfolioNameKept(briefName: string, part1: Record<string,
   }
 }
 
+/** `본명 (별명)` — the only portfolio name shape eligible for alias restoration. */
+const PORTFOLIO_ALIAS_NAME = /^([^()（）]{1,20})\s*[（(]\s*([^()（）]{1,20})\s*[)）]$/u;
+
+export type PortfolioAliasRestore =
+  | { restored: true; name: string }
+  | { restored: false };
+
+/**
+ * The one safe name fix: Part1 returned exactly the portfolio base name and
+ * only dropped the parenthetical alias, on the nickname naming path.
+ *
+ * Everything else (a different base name, a different alias, malformed or empty
+ * names) is not restored and must keep failing the name gate.
+ */
+export function resolvePortfolioAliasRestore(input: {
+  briefName: string;
+  part1Name: string;
+  nicknameMode: boolean;
+}): PortfolioAliasRestore {
+  if (!input.nicknameMode) return { restored: false };
+  const brief = input.briefName.trim();
+  const actual = input.part1Name.trim();
+  if (!brief || !actual || actual === brief) return { restored: false };
+  const match = brief.match(PORTFOLIO_ALIAS_NAME);
+  if (!match) return { restored: false };
+  const base = (match[1] ?? "").trim();
+  const alias = (match[2] ?? "").trim();
+  if (!base || !alias || alias === base) return { restored: false };
+  if (actual !== base) return { restored: false };
+  return { restored: true, name: brief };
+}
+
 export async function generateOfficialCharacterBible(input: {
   transport: OfficialAuthorTransport;
   part1: CharacterBible1Input;
@@ -1212,6 +1244,17 @@ export async function generateOfficialCharacterBible(input: {
   });
   const half1 = parseAuthorJson(first.text, "character_bible_1");
   if (!isRecord(half1)) throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_1: object required");
+  const half1Identity = isRecord(half1.identity) ? half1.identity : null;
+  const half1Name = typeof half1Identity?.name === "string" ? half1Identity.name : "";
+  const aliasRestore = resolvePortfolioAliasRestore({
+    briefName: input.part1.brief.name,
+    part1Name: half1Name,
+    nicknameMode:
+      authoring?.profile.key === "genre_neutral" && authoring?.nameWordplay === "nickname",
+  });
+  if (aliasRestore.restored && half1Identity) {
+    half1Identity.name = aliasRestore.name;
+  }
   assertPortfolioNameKept(input.part1.brief.name, half1);
 
   const recap = buildPart1Recap(half1);
