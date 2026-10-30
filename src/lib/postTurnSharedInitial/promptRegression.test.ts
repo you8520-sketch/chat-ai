@@ -18,6 +18,7 @@ import {
 import type { PostTurnSharedInitialInput } from "./types";
 import { POST_TURN_SHARED_INITIAL_REQUEST_KIND } from "./types";
 import { runPostTurnRelationshipOnlyInitial } from "./run";
+import { buildPostTurnSharedInitialJsonSchema } from "./schema";
 import {
   SUGGESTED_REPLY_MAX_CHARS,
   SUGGESTED_REPLY_MIN_CHARS,
@@ -119,6 +120,23 @@ describe("B51 relationship extraction contract", () => {
     assert.match(system, /conditional offer the other party does not accept/);
     assert.match(system, /Skip ordinary clothes, uniforms, and furniture/);
     assert.doesNotMatch(system, /receiver's updated line/);
+  });
+
+  it("lists relationship before suggestedReplies on the combined status-OFF wire", () => {
+    const input = dualInput({
+      mode: "relationship_only",
+      includeEpisodic: false,
+      includeSuggestions: true,
+    });
+    const system = buildPostTurnSharedInitialSystem(input);
+    const relationshipAt = system.indexOf("RELATIONSHIP section");
+    const suggestionsAt = system.indexOf("SUGGESTED REPLIES section");
+    assert.ok(relationshipAt >= 0 && suggestionsAt >= 0 && relationshipAt < suggestionsAt);
+
+    const schema = buildPostTurnSharedInitialJsonSchema(input);
+    const required = schema.required as string[];
+    assert.ok(required.indexOf("relationship") < required.indexOf("suggestedReplies"));
+    assert.deepEqual(Object.keys(schema.properties as object), ["relationship", "suggestedReplies"]);
   });
 
   it("lets episodic keep an unaccepted offer and still withholds open promises", () => {
