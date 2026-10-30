@@ -79,6 +79,7 @@ async function startWorld(opts: { humans: 1 | 2; ai?: boolean; openingPlayers: (
     inputs: [] as string[],
     calls: 0,
     botTake: "",
+    botLock: "",
     billingFault: undefined as TrpgEngineDeps["billingFault"],
   };
   const usage = { modelId: "deepseek-v4-pro", inputTokens: 2000, outputTokens: 600 };
@@ -88,7 +89,7 @@ async function startWorld(opts: { humans: 1 | 2; ai?: boolean; openingPlayers: (
     rollD20: () => 15,
     rollDie: () => 4,
     botCall: async () => ({
-      text: state.botTake ? `${state.botTake}를 받는다.` : "조용히 주변을 살핀다.",
+      text: state.botLock || (state.botTake ? `${state.botTake}를 받는다.` : "조용히 주변을 살핀다."),
     }),
     gmCall: async ({ user }) => {
       state.calls += 1;
@@ -295,6 +296,31 @@ describe("human PC item ownership needs the player's acceptance", () => {
     assert.equal(held(w, w.seats.ai, HANDLE), 1);
     assert.equal(held(w, w.seats.a, POTION), 0);
     assert.equal(committedHumanPatch(w, 1, w.seats.ai)?.itemOffers, undefined);
+  });
+
+  it("an AI companion mention, refusal, or wish never owns a GM inventoryAdd", async () => {
+    const packet = "봉투";
+    for (const lock of [
+      "봉투를 살펴본다.",
+      "봉투를 받지 않는다. 문을 닫는다.",
+      "봉투를 받으면 좋겠다. 문을 닫는다.",
+      '"봉투는 네가 챙겨." 문을 닫는다.',
+    ]) {
+      const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+      w.state.botLock = lock;
+      w.state.players = [{ participantId: w.seats.ai, inventoryAdd: [packet] }];
+      await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+      assert.equal(held(w, w.seats.ai, packet), 0, lock);
+    }
+  });
+
+  it("an AI companion keeps a packed take of the named item", async () => {
+    const packet = "봉투";
+    const w = await startWorld({ humans: 1, ai: true, openingPlayers: () => [] });
+    w.state.botLock = "봉투를 챙겨 가방에 넣는다.";
+    w.state.players = [{ participantId: w.seats.ai, inventoryAdd: [packet] }];
+    await play(w, [{ userId: 1, body: "주변을 살핀다." }]);
+    assert.equal(held(w, w.seats.ai, packet), 1);
   });
 
   it("an AI companion speech-only lock never owns a GM inventoryAdd", async () => {

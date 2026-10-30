@@ -79,6 +79,10 @@ const NEGATED_PREDICATE = /(?:지\s*않|지\s*못|지\s*말|않는다|않다|안
 const ITEM_CONSUMPTION_PREDICATE =
   /(?:사용(?!법|설명|자|처|량)(?:한다|하고|하며|해서|했다|함|해)?|먹(?:는다|고|으며|었다|어)?|마신(?:다)?|마셔|바른다|바르고|발라|꺼낸다|꺼내|투여(?:한다|하고)?|쓴다|써서)\s*$/;
 
+/** Take/receive is the clause's final predicate. Look, wish, and refusal stay out. */
+const ITEM_TAKE_PREDICATE =
+  /(?:(?:건네받|받아(?:들|쥐)|받|챙기|집어들)(?:는다|ㄴ다|고|며|어|아서|어서|었다|음)?|(?:챙겨|받아(?:서)?|집어(?:서)?)\s+[^.]{0,24}(?:주머니|가방|파우치|배낭|품)(?:에|으로)\s*넣(?:는다|고|으며|었다|어)?)\s*$/;
+
 export type ActionClauseKind = "conditional" | "declined" | "act" | "empty";
 
 function actionClauses(body: string): string[] {
@@ -155,18 +159,32 @@ function clauseConsumesItem(span: string): boolean {
   return ITEM_CONSUMPTION_PREDICATE.test(committed);
 }
 
+function clauseTakesItem(span: string): boolean {
+  const committed = clauseSurface(span);
+  if (!committed) return false;
+  return ITEM_TAKE_PREDICATE.test(committed);
+}
+
 /**
  * Text governed by the clause's consumption predicate: the final conjunct only.
  * `회복약을 바라보면서 붕대를 사용한다` → `붕대를`, not the earlier mention.
  */
 const PRIOR_CONJUNCT = /(?:면서|며|다가|(?<=[가-힣])고)\s+/u;
 
-export function consumptionObjectSpan(span: string): string {
+function governedObjectSpan(span: string, predicate: RegExp): string {
   const surface = clauseSurface(span);
-  const predicate = surface.match(ITEM_CONSUMPTION_PREDICATE);
-  const governed = predicate ? surface.slice(0, surface.length - predicate[0].length).trim() : surface;
+  const match = surface.match(predicate);
+  const governed = match ? surface.slice(0, surface.length - match[0].length).trim() : surface;
   const parts = governed.split(PRIOR_CONJUNCT).map((part) => part.trim()).filter(Boolean);
   return parts[parts.length - 1] ?? governed;
+}
+
+export function consumptionObjectSpan(span: string): string {
+  return governedObjectSpan(span, ITEM_CONSUMPTION_PREDICATE);
+}
+
+export function takeObjectSpan(span: string): string {
+  return governedObjectSpan(span, ITEM_TAKE_PREDICATE);
 }
 
 /** Act spans whose predicate is item consumption. Mention and refusal clauses are omitted. */
@@ -188,6 +206,20 @@ export function otherCommittedActSpans(body: string): string[] {
 /** True when any committed act clause ends in an item-consumption predicate (not usage-instruction nouns). */
 export function isCommittedItemConsumption(body: string): boolean {
   return committedItemConsumptionSpans(body).length > 0;
+}
+
+/** Act spans whose predicate is a take or receive of an item. */
+export function committedItemTakeSpans(body: string): string[] {
+  return actionClauses(body)
+    .map((clause) => classifyActionClause(clause))
+    .filter((clause) => clause.kind === "act" && clause.span && clauseTakesItem(clause.span))
+    .map((clause) => clause.span);
+}
+
+/** True when a committed take clause governs this item name. Mention, look, wish, and refusal do not. */
+export function isCommittedItemTake(body: string, item: string): boolean {
+  if (!item) return false;
+  return committedItemTakeSpans(body).some((span) => takeObjectSpan(span).includes(item));
 }
 
 /** GM note for clauses that must not be narrated as done or charged. Locked quoted speech stays spoken. */

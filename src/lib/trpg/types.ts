@@ -187,7 +187,7 @@ export type TrpgStateDelta = {
     participantId: number;
     hp?: number;
     conditions?: string[];
-    /** AI companion seats: only a locked take of the same item, or a later server exploration grant. A human PC gains items through `itemOffers` plus player acceptance. */
+    /** AI companion seats: only a committed take of the same item, or a later server exploration grant. A human PC gains items through `itemOffers` plus player acceptance. */
     inventoryAdd?: string[];
     /** Commit-boundary only: server-validated player acceptances. Applied after mechanics consume filtering. */
     acceptedInventoryAdd?: string[];

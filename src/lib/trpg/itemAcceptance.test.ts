@@ -53,6 +53,27 @@ describe("item acceptance helpers", () => {
     assert.deepEqual(delta.players[1], { participantId: 2, inventoryAdd: ["칼"] });
   });
 
+  it("AI inventoryAdd stays unowned unless the lock is a committed take of that item", () => {
+    const item = "봉투";
+    const cases: Array<{ lock: string; keep: boolean }> = [
+      { lock: "봉투를 살펴본다.", keep: false },
+      { lock: "봉투를 받지 않는다. 문을 닫는다.", keep: false },
+      { lock: "봉투를 받으면 좋겠다. 문을 닫는다.", keep: false },
+      { lock: '"봉투는 네가 챙겨." 문을 닫는다.', keep: false },
+      { lock: "봉투를 받는다.", keep: true },
+      { lock: "봉투를 챙겨 가방에 넣는다.", keep: true },
+    ];
+    for (const row of cases) {
+      const delta: TrpgStateDelta = { players: [{ participantId: 89, inventoryAdd: [item] }] };
+      stripUnacceptedItemProposals(delta, new Set(), new Map([[89, row.lock]]));
+      assert.deepEqual(
+        delta.players[0]?.inventoryAdd,
+        row.keep ? [item] : undefined,
+        row.lock
+      );
+    }
+  });
+
   it("R7 speech-only companion locks drop GM inventoryAdd for the offered packets", () => {
     const delta: TrpgStateDelta = {
       players: [
