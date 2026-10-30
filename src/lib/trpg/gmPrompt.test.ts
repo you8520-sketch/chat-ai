@@ -467,4 +467,44 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /\[CONTINUITY\]/);
     assert.ok(TRPG_GM_SYSTEM.length <= 11800);
   });
+
+  it("keeps a locked human farewell as spoken canon and does not mark it uncommitted", () => {
+    const farewell =
+      '유리문을 연다. 출입문 밖으로 한 걸음 나선다. 두 사람을 바라보며 고개를 끄덕인다. "잘 가. 오늘은 여기까지다."';
+    const block = buildTrpgGmUserBlock({
+      worldBrief: "모밀찻집",
+      memoryBlock: "",
+      opening: false,
+      actions: [
+        {
+          participantId: 87,
+          name: "렌",
+          body: farewell,
+          participantKind: "human",
+          statKey: "dex",
+          d20: 9,
+          finalScore: 10,
+          dc: 9,
+          tier: "SUCCESS",
+        },
+        {
+          participantId: 88,
+          name: "권태현",
+          body: '"내일도 살아 있으면 보든가."',
+          participantKind: "ai_character",
+          statKey: "cha",
+          d20: null,
+          finalScore: null,
+          dc: null,
+          tier: null,
+        },
+      ],
+    });
+    assert.match(block, /AUTHORITATIVE HUMAN PC ACTION/);
+    assert.match(block, /잘 가\. 오늘은 여기까지다/);
+    assert.doesNotMatch(block, /uncommitted=quoted speech/);
+    assert.doesNotMatch(block, /\[UNCOMMITTED /);
+    assert.equal((block.match(/잘 가\. 오늘은 여기까지다/g) ?? []).length, 1);
+    assert.equal((block.match(/내일도 살아 있으면 보든가/g) ?? []).length, 1);
+  });
 });

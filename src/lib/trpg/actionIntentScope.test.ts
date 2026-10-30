@@ -326,7 +326,8 @@ describe("committed-clause adjudication through submit, dice, inventory, and GM 
       await advanceTrpgCampaign(table.db, { campaignId: table.campaignId, userId: 1, deps: table.deps });
       assert.equal(rollRows(table.db, quoted.id).length, 0);
       assert.equal(loadFrozenAdjudicationDecision(table.db, quoted.round_id, quoted.id)?.reason, "talk");
-      assert.match(table.users.at(-1) ?? "", /quoted speech/);
+      assert.match(table.users.at(-1) ?? "", /「지금 공격하고 설득한다」/);
+      assert.doesNotMatch(table.users.at(-1) ?? "", /uncommitted=quoted speech/);
       assert.match(table.users.at(-1) ?? "", /reason=talk/);
       assert.doesNotMatch(table.users.at(-1) ?? "", /check_required/);
 

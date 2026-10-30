@@ -483,7 +483,7 @@ export function shouldRequestTrpgPlayerGoalRegistration(opts: {
   regenerate?: boolean;
   campaignComplete: boolean;
   activeGoalCount: number;
-  /** Legacy facility: every seat has departed and no criterion-less goal is waiting on the host. */
+  /** Finish request would stand: v1 party escape, or the v2 ending contract on this round's seats. */
   endingFinishWouldStand?: boolean;
 }): boolean {
   if (opts.opening || opts.regenerate || opts.campaignComplete || opts.endingFinishWouldStand) return false;

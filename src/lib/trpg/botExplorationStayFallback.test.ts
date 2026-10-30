@@ -829,4 +829,91 @@ describe("bot exploration stay fallback", () => {
     assert.equal(lockedBody(db, botId), "출구를 향해 화살을 쏜다.");
     db.close();
   });
+
+  it("on a v2 tea map keeps farewell speech after an unknown-room leave and does not teleport", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "찻집",
+      summary: "비 오는 밤",
+      content: "차를 마신다.",
+      visibility: "public",
+      startLocation: "",
+      scenarioPlan: {
+        startingSituation: "비를 피해 찻집에 들어온다",
+        centralConflict: "평온한 밤을 어떻게 마무리할지 정한다",
+        goal: "차를 마시고 헤어진다",
+        endingConditions: ["문을 나서 헤어진다"],
+        adventure: {
+          start: "teahouse",
+          places: [
+            { key: "teahouse", name: "모밀찻집", summary: "비를 피해 들어온 작고 아늑한 찻집.", role: "start" },
+            { key: "table", name: "중앙 테이블", summary: "세 사람이 둘러앉은 나무 테이블.", role: "site" },
+            { key: "door", name: "출입문", summary: "빗소리가 들리는 유리문.", role: "goal" },
+          ],
+          links: [
+            { from: "teahouse", to: "table" },
+            { from: "table", to: "door", opensBy: "event_finish_tea" },
+          ],
+          events: [
+            {
+              key: "event_finish_tea",
+              place: "table",
+              trigger: "careful_search",
+              kind: "clue",
+              text: "빈 찻잔이 식어 있다.",
+            },
+          ],
+        },
+      },
+    });
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "현이", viewerUserId: 1, templateId });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "현이", stats: EVEN_STATS });
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 2,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "권태현",
+    });
+    writeSheet(db, campaignId, botId, "권태현", EVEN_STATS, "모밀찻집");
+    const botLine = [
+      "골목으로 나선다.",
+      "",
+      '"잘 가. 오늘은 여기까지다."',
+      "",
+      "<<<INTENT>>>",
+      "골목으로 나선다.",
+    ].join("\n");
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async () => ({ text: botLine }),
+      gmCall: async () => ({
+        text: buildTrpgGmStructuredWireText("서버가 정한 자리만 잇는다. GM: 무엇을 하겠는가.", {
+          players: [],
+          location: loadCampaignLedger(db, campaignId).location || "모밀찻집",
+          next_round_context: "다음",
+          campaign_finished: false,
+        }),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    writeSheet(db, campaignId, botId, "권태현", EVEN_STATS, "모밀찻집");
+    const diag = captureLockDiagnostics();
+    submitTrpgAction(db, { campaignId, userId: 1, body: "중앙 테이블로 이동한다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    diag.restore();
+    const lockLog = diag.logs.at(-1);
+    assert.ok(lockLog);
+    assert.ok(lockLog.declaredRoomIds.length >= 1);
+    assert.ok(lockLog.declaredRoomIds.every((id) => id === BOT_EXPLORATION_LOG_UNKNOWN_ROOM));
+    assert.equal(lockLog.firstRejectCode, "disconnected");
+    assert.equal(lockLog.fallbackBranch, "priced-empty-remainder");
+    assert.equal(lockLog.outcome, "original-locked");
+    assert.equal(locationOf(db, botId), "모밀찻집");
+    assert.match(lockedBody(db, botId), /잘 가\. 오늘은 여기까지다/);
+    assert.doesNotMatch(lockedBody(db, botId), /골목으로 나선다/);
+    db.close();
+  });
 });
