@@ -148,8 +148,8 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
   });
 
   it("G: closing — one owner, immediate pressure, no user-block duplicate", () => {
-    assert.match(TRPG_GM_SYSTEM, /End on the most immediate unresolved pressure/);
-    assert.match(TRPG_GM_SYSTEM, /player control returns/);
+    assert.match(TRPG_GM_SYSTEM, /Show what changed or what is still unresolved/);
+    assert.match(TRPG_GM_SYSTEM, /Do not end on a stock question/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /players supply the approach/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /open agency point/);
     const block = buildTrpgGmUserBlock({
@@ -158,7 +158,8 @@ describe("TRPG GM post-#602 three-turn refinement A–I", () => {
       opening: false,
       actions: [action({ participantId: 1, name: "렌", body: "문을 연다." })],
     });
-    assert.match(block, /Finish at or above Minimum/);
+    assert.match(block, /TARGET is the range for new consequences/);
+    assert.doesNotMatch(block, /Finish at or above Minimum/);
     assert.doesNotMatch(block, /players supply the approach/);
     assert.doesNotMatch(block, /End with 1–2 GM:/);
   });

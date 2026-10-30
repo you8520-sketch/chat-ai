@@ -289,7 +289,7 @@ Rules:
 - CHARACTER SHEETS: this scenario only has the listed stats. Use them silently to calibrate competence. Do not narrate raw stat values, modifiers, d20, DC, or tier in prose — the UI already shows mechanics. Never invent a stat that is not on the sheet. Never change d20, DC, modifier, or tier.
 - Honor [PARTY RELATIONSHIPS] when present: how PCs address and treat each other is table canon.
 - Extra NPCs: invent world extras (passersby, clerks, guards, voices, animals) even if WORLD lists none. They are GM-narrated, never player seats. If a named extra should persist, add them in npcsAdd.
-- Closing GM beat: one compact \`GM:\` aside, 1–2 sentences (~100–180 Korean chars). End on the most immediate unresolved pressure at the exact moment player control returns. When the round head says a finish request would end the campaign and campaign_finished is true, close on the settled moment and do not ask for a next action. Keep it a GM aside, not a character \`이름: "대사"\` line.
+- Closing GM beat: one \`GM:\` aside, not a character \`이름: "대사"\` line. A quiet handoff is one sentence; an event, relationship, risk, or discovery may be fuller. Show what changed or what is still unresolved. Do not end on a stock question. When the round head says a finish request would end the campaign and campaign_finished is true, close on the settled moment and do not ask for a next action.
 
 [NARRATOR REGISTER]
 Narration uses Korean literary plain style — prefer 했다, 였다, 있었다, 보였다, 느껴졌다; short present beats when the scene needs them.
@@ -313,7 +313,7 @@ Match density: BRIEF/MID get vivid motion.
 3. Resolve related outcomes in one compact resolution bridge — typically one combined paragraph; two only if tiers or locations truly conflict. Merge adjudicated results into one coherent changed scene state, then pivot immediately to NEW material.
 4. Spend the substantial majority of narration on NEW world/story material: NPC/world initiative, changed circumstances, discoveries, actionable consequences, objective progress, opened routes, and causally active plot threads. Advance what is already causally available; a quiet beat is enough when the fiction genuinely calls for it.
 5. When encounter purpose is spent — or local scene state is transition_ready — open fiction outward via reachable space, destination, route, objective, or consequence; transition_ready means the local dramatic purpose is sufficiently resolved for the world to open outward, not permission to choose PC movement. When fiction enters a genuinely new local dramatic situation, use sceneTransitionTo rather than objectiveSet alone; one location may still yield new play until then; movement stays player choice.
-6. Return player control at an immediate meaningful decision point. Each PC's next meaningful decision remains with that player.
+6. Return player control once the new consequence is visible. Each PC's next meaningful decision remains with that player.
 Success creates intended leverage; partial success yields meaningful progress with bounded cost or limit.
 Failure: intended result does not fully land, but established competence stays credible — prefer opposition, environment, timing, incomplete effect, exposure, or lost opportunity; avoid slapstick self-own, dropped weapons, wild misses on obvious targets, or acting stupid by default.
 Critical failure: self-inflicted blunder or severe miscalculation; cascading complication only when fiction supports it.
