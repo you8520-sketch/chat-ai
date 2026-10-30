@@ -4,11 +4,16 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { CHARACTER_GENRES } from "@/lib/characterGenres";
+import { canAccessCharacter, listableWhere } from "@/lib/characterVisibility";
 import { createCharacterFromForm } from "@/lib/characterFormSave";
+import { listCharacterCreatorLorebookAttachmentIds } from "@/lib/creatorLorebook";
 import { getDb } from "@/lib/db";
+import { resolveOfficialCharacterEditorAccess } from "@/lib/officialAdminAccess";
+import { composeExampleDialog, parseSpeechCreatorFromBody } from "@/lib/speechCreatorFields";
 import {
   assessAdminAuthorManuscript,
   clearAdminAuthorPreviewsForTests,
+  comparisonCastForAdminGenre,
   countAdminAuthorSavedHoldsForTests,
   holdAdminAuthorManuscriptForTests,
   markAdminAuthorPreviewSavedForTests,
@@ -34,6 +39,13 @@ import {
   resolveAdminAuthoringDirection,
   resolveOfficialAuthoringPlan,
 } from "@/lib/officialSupply/genreProfile";
+import {
+  evaluateBriefCastFit,
+  evaluateCastRoleDiversity,
+  selectMarketSignals,
+  type OfficialBatchMarketPolicy,
+} from "@/lib/officialSupply/marketFit";
+import type { ResearchSnapshot } from "@/lib/officialSupply/research";
 import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
 import { assertIsolatedTestDatabaseActive, installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 
@@ -695,6 +707,121 @@ describe("G5-2 admin private draft save", () => {
     const afterCount = (getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n;
     assert.equal(afterCount, beforeCount);
   });
+
+  it("reopens a QA-pass imageless private draft from the studio query and keeps it off public lists", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const pack = candidate("g5-modern-comedy");
+    const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
+    const preview = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible: pack.bible,
+    });
+    assert.equal(preview.qaOk, true);
+    const missing = await saveHeldAdminAuthorPreview(ADMIN, "");
+    assert.equal(missing.ok, false);
+    if (!missing.ok) assert.equal(missing.status, 404);
+    const saved = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    assert.equal(saved.ok, true);
+    if (!saved.ok) return;
+    const form = buildOfficialCharacterFormBody({ draft: pack.draft, appearanceBlock: "", assets: [] });
+    const db = getDb();
+    const read = () =>
+      db.prepare(
+        `SELECT id, creator_id, name, tagline, description, greeting, system_prompt, world, example_dialog,
+                creator_comment, visibility, official, assets, moderation_status, share_slug, content_kind
+         FROM characters WHERE id=?`
+      ).get(saved.characterId) as {
+        id: number;
+        creator_id: number;
+        name: string;
+        tagline: string;
+        description: string;
+        greeting: string;
+        system_prompt: string;
+        world: string;
+        example_dialog: string;
+        creator_comment: string;
+        visibility: "public" | "link" | "private";
+        official: number;
+        assets: string;
+        moderation_status: "pending" | "approved" | "rejected";
+        share_slug: string | null;
+        content_kind: string;
+      };
+    const row = read();
+    const reloaded = read();
+    assert.deepEqual(reloaded, row);
+    assert.equal(row.creator_id, ADMIN.id);
+    assert.equal(row.visibility, "private");
+    assert.equal(row.official, 0);
+    assert.equal(row.assets, "[]");
+    assert.equal(row.content_kind, "character");
+    assert.equal(row.name, form.name);
+    assert.equal(row.tagline, form.tagline);
+    assert.equal(row.description, form.description);
+    assert.equal(row.greeting, form.greeting);
+    assert.equal(row.system_prompt, form.system_prompt);
+    assert.equal(row.world, form.world);
+    assert.equal(row.creator_comment, form.creator_comment);
+    assert.equal(row.example_dialog, composeExampleDialog(parseSpeechCreatorFromBody(form)));
+    assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(db, row.id), []);
+    const listed = db.prepare(`SELECT id FROM characters WHERE ${listableWhere()} AND id=?`).get(row.id);
+    assert.equal(listed, undefined);
+    assert.equal(
+      canAccessCharacter(
+        {
+          id: row.id,
+          creator_id: row.creator_id,
+          visibility: row.visibility,
+          moderation_status: row.moderation_status,
+          share_slug: row.share_slug,
+          official: row.official,
+        },
+        USER.id
+      ).ok,
+      false
+    );
+    assert.equal(
+      canAccessCharacter(
+        {
+          id: row.id,
+          creator_id: row.creator_id,
+          visibility: row.visibility,
+          moderation_status: row.moderation_status,
+          share_slug: row.share_slug,
+          official: row.official,
+        },
+        ADMIN.id
+      ).ok,
+      true
+    );
+    const studio = db
+      .prepare(
+        `SELECT id FROM characters WHERE creator_id=? AND COALESCE(content_kind, 'character')='character'`
+      )
+      .all(ADMIN.id) as { id: number }[];
+    assert.ok(studio.some((item) => item.id === row.id));
+    const strangerStudio = db
+      .prepare(
+        `SELECT id FROM characters WHERE creator_id=? AND COALESCE(content_kind, 'character')='character'`
+      )
+      .all(USER.id) as { id: number }[];
+    assert.equal(strangerStudio.some((item) => item.id === row.id), false);
+    assert.equal(
+      resolveOfficialCharacterEditorAccess(ADMIN, { id: row.id, official: row.official, creator_id: row.creator_id }),
+      "owner"
+    );
+    assert.equal(
+      resolveOfficialCharacterEditorAccess(USER, { id: row.id, official: row.official, creator_id: row.creator_id }),
+      "forbidden"
+    );
+    const retry = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+    assert.equal(retry.ok && retry.alreadySaved, true);
+    assert.equal(retry.ok && retry.characterId, row.id);
+  });
 });
 
 describe("G5-3E shared world projection runs before character calls", () => {
@@ -774,5 +901,140 @@ describe("G5-3E shared world projection runs before character calls", () => {
     if (!saved.ok) assert.equal(saved.status, 404);
     const after = db.prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number };
     assert.equal(after.n, before.n);
+  });
+});
+
+const CAST_POLICY: OfficialBatchMarketPolicy = {
+  targetLocale: "ko-KR",
+  signalRegion: "KR",
+  marketPriority: "domestic_first",
+  maxSupportingSignals: 4,
+  marketRoleMix: { proven: { min: 0, max: 1 }, proven_twist: { min: 0, max: 1 }, experimental: { min: 0, max: 1 } },
+  maxPrimaryTropeRepeat: 1,
+  coreTags: { min: 4, max: 7 },
+  maxTaglineWorldTerms: 2,
+};
+
+describe("G5-3H cast contrast", () => {
+  const pilotPortfolio = () =>
+    readJson<{ bible: { portfolio: PortfolioBriefInput[] } }>(
+      path.join(process.cwd(), "src/lib/officialSupply/pilot/world-bible.json")
+    ).bible.portfolio;
+  const researchSnapshot = () =>
+    readJson<ResearchSnapshot>(path.join(process.cwd(), "docs/official-supply/market-research-snapshot-2026-09.json"));
+
+  it("uses the pilot portfolio only for romance fantasy", () => {
+    const pilot = pilotPortfolio();
+    assert.equal(comparisonCastForAdminGenre(OFFICIAL_ROFAN_GENRE, pilot).length, pilot.length);
+    assert.deepEqual(comparisonCastForAdminGenre(OFFICIAL_MODERN_DAILY_GENRE, pilot), []);
+    assert.equal(
+      pilot.some((brief) => brief.name.includes("박은지") || brief.name.includes("박서윤")),
+      false
+    );
+    assert.ok(pilot.some((brief) => brief.name.startsWith("카엘룸")));
+    const selection = selectMarketSignals(researchSnapshot(), CAST_POLICY, OFFICIAL_MODERN_DAILY_GENRE, {
+      excludeRomanceLed: true,
+    });
+    assert.deepEqual(
+      selection.primary.map((signal) => signal.signalId),
+      ["global-08"]
+    );
+  });
+
+  it("does not flag the public 박은지/박서윤 pair as a role clone and does not score a nickname against the rofan court", () => {
+    const eunji = readJson<PortfolioBriefInput>(path.join(ROOT, "g5-modern-comedy-e/brief.json"));
+    // G5-3F kept the public manuscript only. These fields are copied from that text, not from a saved portfolio brief.
+    const seoyun: PortfolioBriefInput = {
+      ...eunji,
+      name: "박서윤",
+      age: 29,
+      archetype: "공유주방 수리비와 가족 청구를 기록으로 나누는 실무자",
+      relationshipTrope: "아버지의 체면과 공동 비용 사이에서 기록을 맡는 사람",
+      occupation: "공유주방 운영 실무자이자 반찬 납품 보조",
+      faction: "동네 공유주방 운영모임",
+      socialPosition: "재개발 전까지 임시 사용 승인을 갱신하는 운영 실무자",
+      personalityCore:
+        "예약과 비용을 날짜와 이름으로 정리하고, 떠넘겨진 일은 기록한 뒤 다음 담당자를 정한다. 건조한 농담으로 회의를 낮추지만 책임을 지우지는 않는다.",
+      visualSilhouette:
+        "163cm. 검은색에 가까운 짙은 갈색 머리를 낮게 묶고 소매를 걷은 셔츠와 실용적인 앞치마를 입는다. 손등은 설거지로 건조하고 왼손 엄지에는 잉크가 묻는다.",
+      rpHook:
+        "공동 싱크대 수리비를 정하는 아침, 아버지 태식은 예약표 실수를 서윤의 무능이라고 몰아붙이고 바자회장에 식당 간판을 달겠다고 나선다. 서윤은 식당이 보탠 재료와 설거지 노동을 게시판에 적고, 당신에게 수리비와 준비 분담을 기록으로 맞춰 보자고 한다.",
+      speechDirection: "건조한 농담으로 회의의 열기를 낮추지만 책임을 농담으로 지우지 않는다. 영수증과 숫자부터 맞춘다.",
+    };
+    const roleCodes = ["cast_occupation_clone", "cast_hook_clone", "cast_silhouette_clone", "cast_speech_clone"];
+    const pair = evaluateCastRoleDiversity([
+      { ...eunji, draftKey: eunji.name },
+      { ...seoyun, draftKey: seoyun.name },
+    ]);
+    assert.deepEqual(
+      pair.errors.map((error) => error.code),
+      []
+    );
+    const pilot = pilotPortfolio();
+    const snapshot = researchSnapshot();
+    const againstPilot = evaluateBriefCastFit({
+      fresh: [seoyun],
+      kept: pilot,
+      snapshot,
+      policy: CAST_POLICY,
+      namingProfile: "korean_modern",
+    });
+    assert.equal(
+      againstPilot.errors.some((error) => roleCodes.some((code) => error.includes(code))),
+      false
+    );
+    const againstSibling = evaluateBriefCastFit({
+      fresh: [seoyun],
+      kept: [eunji],
+      snapshot,
+      policy: CAST_POLICY,
+      namingProfile: "korean_modern",
+    });
+    assert.equal(
+      againstSibling.errors.some((error) => roleCodes.some((code) => error.includes(code))),
+      false
+    );
+    const distinct = evaluateCastRoleDiversity([
+      { ...eunji, draftKey: eunji.name },
+      {
+        ...eunji,
+        draftKey: "한겨울",
+        name: "한겨울",
+        occupation: "심야 고속버스 기사",
+        archetype: "밤길 운전사",
+        socialPosition: "배차 기사",
+        rpHook: "막차 정류장에서 놓친 짐을 같이 찾는다.",
+        visualSilhouette: "짧은 은발과 형광 조끼.",
+        speechDirection: "느린 사투리로 도로 상황을 말한다.",
+      },
+    ]);
+    assert.deepEqual(
+      distinct.errors.map((error) => error.code),
+      []
+    );
+    const princess: PortfolioBriefInput = {
+      ...eunji,
+      name: "강나리 (공주님)",
+      archetype: "공주님이라고 불리는 현장 수습꾼",
+    };
+    const court = evaluateBriefCastFit({
+      fresh: [princess],
+      kept: pilot,
+      snapshot,
+      policy: CAST_POLICY,
+      namingProfile: "korean_modern",
+    });
+    assert.ok(court.errors.some((error) => error.includes("cast_royal_density")));
+    const filtered = evaluateBriefCastFit({
+      fresh: [princess],
+      kept: comparisonCastForAdminGenre(OFFICIAL_MODERN_DAILY_GENRE, pilot),
+      snapshot,
+      policy: CAST_POLICY,
+      namingProfile: "korean_modern",
+    });
+    assert.equal(
+      filtered.errors.some((error) => error.includes("cast_royal_density")),
+      false
+    );
   });
 });

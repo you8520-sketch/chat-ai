@@ -482,7 +482,7 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
     "",
     "세계 맥락(모순 금지):",
     input.worldContext,
-    ...formatAuthoringDirection(plan, ["tone", "humor", "relation"]),
+    ...formatAuthoringDirection(plan, ["tone", "humor", "wordplay", "relation"]),
     "",
     input.siblingSketches.length
       ? `형제 캐릭터(이들과 이름·트로프·직업·말투·외형이 겹치지 않게):\n${input.siblingSketches.map((s) => `- ${s}`).join("\n")}\n`
@@ -613,7 +613,7 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     "전반부 요약:",
     input.part1Recap,
     ...(input.publicContext ? ["공개 원고용 외형·세계:", input.publicContext] : []),
-    ...formatAuthoringDirection(plan, ["tone", "humor", "pacing", "relation"]),
+    ...formatAuthoringDirection(plan, ["tone", "humor", "pacing", "wordplay", "relation"]),
     "",
     "출력 틀:",
     characterVoiceSkeleton(input.adultCandidate, input.includePublicManuscripts ?? true),

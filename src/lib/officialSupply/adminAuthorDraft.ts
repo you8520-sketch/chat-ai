@@ -37,6 +37,7 @@ import { buildOfficialCharacterFormBody, computeTextLockHash } from "@/lib/offic
 import {
   OFFICIAL_HUMOR_LEVELS,
   OFFICIAL_NAME_WORDPLAY,
+  OFFICIAL_ROFAN_GENRE,
   OFFICIAL_NARRATIVE_PACINGS,
   OFFICIAL_NARRATIVE_TONES,
   recommendOfficialCastIntent,
@@ -203,7 +204,16 @@ export function parseAdminAuthorSelection(body: unknown): { ok: true; selection:
   return { ok: true, selection: { genre, tone, humor, pacing, nameWordplay, gender, castIntent } };
 }
 
-function snapshotAndCast(): { snapshot: ResearchSnapshot; kept: PortfolioBriefInput[] } {
+/**
+ * The checked-in pilot portfolio is the romance-fantasy cast. A different genre
+ * has no approved official cast in that file, so it is not scored against those briefs.
+ */
+export function comparisonCastForAdminGenre<T>(genre: string, pilotPortfolio: readonly T[]): T[] {
+  if (genre === OFFICIAL_ROFAN_GENRE) return [...pilotPortfolio];
+  return [];
+}
+
+function snapshotAndCast(genre: string): { snapshot: ResearchSnapshot; kept: PortfolioBriefInput[] } {
   const root = process.cwd();
   const snapshot = JSON.parse(
     fs.readFileSync(path.join(root, "docs/official-supply/market-research-snapshot-2026-09.json"), "utf8")
@@ -213,7 +223,7 @@ function snapshotAndCast(): { snapshot: ResearchSnapshot; kept: PortfolioBriefIn
   const pilot = JSON.parse(
     fs.readFileSync(path.join(root, "src/lib/officialSupply/pilot/world-bible.json"), "utf8")
   ) as { bible: OfficialWorldBible };
-  return { snapshot, kept: pilot.bible.portfolio };
+  return { snapshot, kept: comparisonCastForAdminGenre(genre, pilot.bible.portfolio) };
 }
 
 function marketFor(snapshot: ResearchSnapshot, plan: OfficialAuthoringPlan): WorldMarketInput {
@@ -516,7 +526,7 @@ export async function previewAdminOfficialCharacter(input: {
   const transport = transportFor(input.transport, budget);
   const modelId = resolveOfficialAuthorModelId();
   try {
-    const { snapshot, kept } = snapshotAndCast();
+    const { snapshot, kept } = snapshotAndCast(input.selection.genre);
     const market = marketFor(snapshot, plan);
     const genderMix = gender === "female" ? "여성 1명" : gender === "male" ? "남성 1명" : "기타 1명";
     const generatedWorld = await generateOfficialWorldBible({
