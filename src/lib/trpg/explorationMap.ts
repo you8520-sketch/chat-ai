@@ -349,6 +349,19 @@ function edgeVisible(edge: ExplorationEdge, revealed: ReadonlySet<string>): bool
   return !edge.hidden || revealed.has(edge.id);
 }
 
+/** Rooms the public map already shows: visited rooms plus their visible neighbors. */
+export function publicKnownExplorationRoomIds(state: ExplorationState): Set<string> {
+  const revealed = new Set(state.revealedEdgeIds);
+  const visited = new Set(state.visitedRoomIds);
+  const known = new Set<string>(visited);
+  for (const edge of state.map.edges) {
+    if (!edgeVisible(edge, revealed)) continue;
+    if (visited.has(edge.from)) known.add(edge.to);
+    if (visited.has(edge.to)) known.add(edge.from);
+  }
+  return known;
+}
+
 export function openEdges(map: ExplorationMap, revealedEdgeIds: readonly string[]): ExplorationEdge[] {
   const revealed = new Set(revealedEdgeIds);
   return map.edges.filter((edge) => edgePassable(edge, revealed));
@@ -820,7 +833,7 @@ export type BotExplorationMovePlan = {
 
 /**
  * Legal hop sequences from the current room and remaining AP, plus NO_MOVE.
- * Candidates only — the caller must not pick among them.
+ * Only rooms already on the public map. Candidates only — the caller must not pick among them.
  */
 export function legalExplorationMovePlans(opts: {
   state: ExplorationState;
@@ -830,6 +843,7 @@ export function legalExplorationMovePlans(opts: {
   const noMove: BotExplorationMovePlan = { token: BOT_EXPLORATION_NO_MOVE, commands: [], labels: [] };
   const from = canonicalRoomId(opts.state.map, opts.fromRoomId);
   if (!from || !explorationHasMap(opts.state.map)) return [noMove];
+  const known = publicKnownExplorationRoomIds(opts.state);
   const cap = Math.min(Math.max(0, opts.apRemaining), EXPLORATION_COMMAND_LIMIT);
   const out: BotExplorationMovePlan[] = [noMove];
   const seen = new Set<string>([BOT_EXPLORATION_NO_MOVE]);
@@ -837,7 +851,7 @@ export function legalExplorationMovePlans(opts: {
     if (commands.length >= cap) return;
     for (const exitName of visibleExplorationNeighbors(opts.state, roomId)) {
       const dest = canonicalRoomId(opts.state.map, exitName);
-      if (!dest) continue;
+      if (!dest || !known.has(dest)) continue;
       const nextCommands: ExplorationCommand[] = [...commands, { op: "move", roomId: dest }];
       try {
         priceExplorationCommands({
@@ -1407,11 +1421,7 @@ export function projectPublicExploration(opts: {
   const revealed = new Set(state.revealedEdgeIds);
   const visited = new Set(state.visitedRoomIds);
   const visibleEdges = state.map.edges.filter((edge) => edgeVisible(edge, revealed));
-  const known = new Set<string>(visited);
-  for (const edge of visibleEdges) {
-    if (visited.has(edge.from)) known.add(edge.to);
-    if (visited.has(edge.to)) known.add(edge.from);
-  }
+  const known = publicKnownExplorationRoomIds(state);
   const viewerRoom = canonicalRoomId(state.map, opts.viewerLocation);
   const currentRoom = viewerRoom && visited.has(viewerRoom) ? state.map.rooms.find((room) => room.id === viewerRoom) : undefined;
   const revealedEvents = state.map.events.filter((event) => state.revealedEventIds.includes(event.id));

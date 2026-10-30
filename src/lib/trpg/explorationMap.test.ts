@@ -36,6 +36,7 @@ import {
   spendExplorationAp,
   visibleExplorationNeighbors,
 } from "./explorationMap";
+import { buildTrpgBotResponseFormat } from "./botStructuredOutput";
 import { explorationQueueCost, parseExplorationCommands } from "./explorationPublic";
 
 describe("exploration map generation", () => {
@@ -567,8 +568,9 @@ describe("exploration map generation", () => {
     const tokens = plans.map((plan) => plan.token);
     assert.ok(tokens.includes(BOT_EXPLORATION_NO_MOVE));
     assert.ok(tokens.includes("table"));
-    assert.ok(tokens.includes("table>counter"));
-    assert.ok(tokens.includes("table>counter>door"));
+    assert.equal(tokens.includes("table>counter"), false);
+    assert.equal(tokens.includes("table>counter>door"), false);
+    assert.equal(tokens.includes("counter"), false);
     assert.equal(tokens.includes("door"), false);
     assert.equal(tokens.includes("table>door"), false);
     assert.equal(tokens.some((token) => token.startsWith("door")), false);
@@ -588,10 +590,69 @@ describe("exploration map generation", () => {
     assert.match(briefWithPlans, /Legal move plans \(choose exactly one token\):/);
     assert.match(briefWithPlans, /NO_MOVE/);
     assert.match(briefWithPlans, /table \(중앙 테이블\)/);
-    assert.match(briefWithPlans, /table>counter>door \(중앙 테이블 → 계산대 → 출입문\)/);
+    assert.doesNotMatch(briefWithPlans, /table>counter/);
     assert.deepEqual(
       legalExplorationMovePlans({ state, fromRoomId: "teahouse", apRemaining: 1 }).map((plan) => plan.token),
       [BOT_EXPLORATION_NO_MOVE, "table"]
     );
+    const knownPath = legalExplorationMovePlans({
+      state: { ...state, visitedRoomIds: ["teahouse", "table"] },
+      fromRoomId: "teahouse",
+      apRemaining: 3,
+    });
+    const knownTokens = knownPath.map((plan) => plan.token);
+    assert.ok(knownTokens.includes("table"));
+    assert.ok(knownTokens.includes("table>counter"));
+    assert.ok(knownTokens.includes("table>counter>door"));
+    assert.equal(knownTokens.includes("door"), false);
+    assert.equal(knownTokens.includes("table>door"), false);
+  });
+
+  it("keeps dense-map movePlan enums inside a provider-safe schema size", () => {
+    const facility = emptyExplorationState("dense-schema");
+    const facilityKnown = {
+      ...facility,
+      visitedRoomIds: facility.map.rooms.map((room) => room.id),
+    };
+    const facilityPlans = legalExplorationMovePlans({
+      state: facilityKnown,
+      fromRoomId: EXPLORATION_ENTRANCE,
+      apRemaining: 6,
+    });
+    const spokes = ["a", "b", "c", "d", "e", "f"] as const;
+    const hub = adventureExplorationState(
+      {
+        start: "hub",
+        places: [
+          { key: "hub", name: "광장", summary: "여러 골목이 모인 광장.", role: "hub" },
+          ...spokes.map((key) => ({
+            key,
+            name: `${key}골목`,
+            summary: `${key}쪽 골목.`,
+            role: "site" as const,
+          })),
+        ],
+        links: spokes.map((key) => ({ from: "hub", to: key })),
+        events: [],
+      },
+      "hub-dense"
+    );
+    const hubKnown = {
+      ...hub,
+      visitedRoomIds: hub.map.rooms.map((room) => room.id),
+    };
+    const hubPlans = legalExplorationMovePlans({
+      state: hubKnown,
+      fromRoomId: "hub",
+      apRemaining: 6,
+    });
+    assert.ok(facilityPlans.length > 1);
+    assert.ok(hubPlans.length > 1);
+    assert.ok(facilityPlans.length < 2000);
+    assert.ok(hubPlans.length < 2000);
+    const facilityBytes = Buffer.byteLength(JSON.stringify(buildTrpgBotResponseFormat(facilityPlans.map((plan) => plan.token))), "utf8");
+    const hubBytes = Buffer.byteLength(JSON.stringify(buildTrpgBotResponseFormat(hubPlans.map((plan) => plan.token))), "utf8");
+    assert.ok(facilityBytes < 32_000, `facility schema ${facilityBytes}`);
+    assert.ok(hubBytes < 32_000, `hub schema ${hubBytes}`);
   });
 });

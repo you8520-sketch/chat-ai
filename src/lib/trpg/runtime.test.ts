@@ -63,6 +63,11 @@ describe("TRPG bot actions", () => {
     assert.doesNotMatch(structured, /No JSON/);
     assert.match(structured, /Output only the JSON object required by the response schema/);
     assert.match(structured, /movePlan is exactly one token/);
+    assert.doesNotMatch(structured, /<<<ACTION_TYPE>>>/);
+    assert.doesNotMatch(structured, /<<<INTENT>>>/);
+    assert.doesNotMatch(structured, /After the finished prose, emit/);
+    assert.match(TRPG_BOT_SYSTEM, /<<<ACTION_TYPE>>>/);
+    assert.match(TRPG_BOT_SYSTEM, /After the finished prose, emit/);
     assert.doesNotMatch(block, /\[LENGTH\]/);
     assert.doesNotMatch(block, /Follow the system length contract/);
     assert.doesNotMatch(block, /aim ~550/);

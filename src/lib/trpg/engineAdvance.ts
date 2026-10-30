@@ -325,6 +325,8 @@ export type TrpgEngineDeps = {
   skipBilling?: boolean;
   /** Test-only. Throws after entering this billing substage. */
   billingFault?: TrpgBillingSubstage | "after_first_deduction";
+  /** Test-only. Mapped Bot replies use the structured move contract even with `botCall`. */
+  structuredBotOutput?: boolean;
 } & MechanicsRoundDeps;
 
 function newRequestId(): string {
@@ -1442,14 +1444,15 @@ async function generateBotActions(
             apRemaining: displayExplorationAp(latestMap, bot.id, roundNumber),
           })
         : [];
-    const useStructuredWire = plans.length > 0;
-    const system = useStructuredWire && !injectedBotCall ? buildTrpgBotSystem({ structured: true }) : TRPG_BOT_SYSTEM;
+    const structuredRequested =
+      plans.length > 0 && (!injectedBotCall || opts.deps?.structuredBotOutput === true);
+    const system = structuredRequested ? buildTrpgBotSystem({ structured: true }) : TRPG_BOT_SYSTEM;
     const { text, usage } = injectedBotCall
       ? await injectedBotCall(system, user)
       : await callTrpgBot({
           system,
           user,
-          responseFormat: useStructuredWire ? buildTrpgBotResponseFormat(plans.map((plan) => plan.token)) : undefined,
+          responseFormat: structuredRequested ? buildTrpgBotResponseFormat(plans.map((plan) => plan.token)) : undefined,
         });
     const structured = parseTrpgBotStructuredAction(text);
     const body = prepareTrpgBotActionBody(
@@ -1467,6 +1470,8 @@ async function generateBotActions(
         declared = planCommands;
         structuredPlanValid = true;
       }
+    } else if (structuredRequested) {
+      fallbackBranch = "malformed-structured-output";
     } else if (latestMap) {
       declared = explorationCommandsFromMovementBody(latestMap.map, body);
     }
@@ -1616,9 +1621,10 @@ async function generateBotActions(
         }
       }
     } else if (
-      structured &&
       latestMap &&
-      (fallbackBranch === "invalid-structured-plan" || declaredMovementGoals(body).length > 0)
+      (fallbackBranch === "invalid-structured-plan" ||
+        fallbackBranch === "malformed-structured-output" ||
+        (structured && declaredMovementGoals(body).length > 0))
     ) {
       const remainder = independentBotRemainder({
         body,
@@ -1633,7 +1639,9 @@ async function generateBotActions(
         usableRemainder && explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0
           ? canonicalRemainderLock(usableRemainder, remainder.finishedResults)
           : "";
-      if (fallbackBranch !== "invalid-structured-plan") fallbackBranch = "structured-no-move";
+      if (fallbackBranch !== "invalid-structured-plan" && fallbackBranch !== "malformed-structured-output") {
+        fallbackBranch = "structured-no-move";
+      }
       if (locked) {
         lockOutcome = "original-locked";
         spoken = locked;

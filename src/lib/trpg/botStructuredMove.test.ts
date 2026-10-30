@@ -10,7 +10,7 @@ import {
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
 import { loadCampaignLedger } from "./campaignLedger";
-import { loadExplorationState } from "./explorationStore";
+import { loadExplorationState, saveExplorationState } from "./explorationStore";
 import { BOT_EXPLORATION_NO_MOVE } from "./explorationMap";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { ensureTrpgTables } from "./schema";
@@ -104,6 +104,7 @@ async function playTea(opts: {
   provider: string;
   humanBody?: string;
   humanCommands?: unknown;
+  visitedRoomIds?: string[];
 }): Promise<{
   db: Database.Database;
   campaignId: number;
@@ -144,6 +145,7 @@ async function playTea(opts: {
   const gmPrompts: string[] = [];
   const deps: TrpgEngineDeps = {
     skipBilling: true,
+    structuredBotOutput: true,
     rollD20: () => 16,
     botCall: async () => ({ text: opts.provider }),
     gmCall: async ({ user }) => {
@@ -160,6 +162,11 @@ async function playTea(opts: {
   };
   await startTrpgCampaign(db, { campaignId, userId: 1, deps });
   writeSheet(db, campaignId, botId, "권태현", EVEN_STATS, "모밀찻집");
+  if (opts.visitedRoomIds) {
+    const latest = loadExplorationState(db, campaignId);
+    assert.ok(latest);
+    saveExplorationState(db, campaignId, { ...latest, visitedRoomIds: opts.visitedRoomIds });
+  }
   const diag = captureLockDiagnostics();
   submitTrpgAction(db, {
     campaignId,
@@ -196,6 +203,20 @@ describe("structured bot move plans", () => {
     assert.equal(played.lock?.fallbackBranch, "structured-full-lock");
     assert.deepEqual(played.lock?.declaredRoomIds, ["table"]);
     assert.match(played.gm, /권태현: moved 모밀찻집 → 중앙 테이블/);
+    played.db.close();
+  });
+
+  it("rejects a fog-unknown multi-hop that the public map has not shown yet", async () => {
+    const played = await playTea({
+      provider: structured({
+        prose: "계산대를 지나 문으로 간다.",
+        intent: "출입문으로 이동한다.",
+        movePlan: "table>counter>door",
+      }),
+    });
+    assert.equal(locationOf(played.db, played.botId), "모밀찻집");
+    assert.equal(played.lock?.fallbackBranch, "invalid-structured-plan");
+    assert.doesNotMatch(lockedBody(played.db, played.botId), /출입문으로 이동한다/);
     played.db.close();
   });
 
@@ -280,8 +301,28 @@ describe("structured bot move plans", () => {
     played.db.close();
   });
 
+  it("fail-closes on malformed structured output instead of extracting a NL door hop", async () => {
+    const cases = [
+      '{"prose":"출입문으로 걸어간다.","actionType":"free","intent":"출입문으로 이동한다."',
+      "출입문으로 이동한다.",
+      JSON.stringify({
+        prose: "출입문으로 걸어간다.",
+        actionType: "free",
+        intent: "출입문으로 이동한다.",
+      }),
+    ];
+    for (const provider of cases) {
+      const played = await playTea({ provider });
+      assert.equal(locationOf(played.db, played.botId), "모밀찻집");
+      assert.equal(played.lock?.fallbackBranch, "malformed-structured-output");
+      assert.doesNotMatch(lockedBody(played.db, played.botId), /출입문으로 이동한다/);
+      played.db.close();
+    }
+  });
+
   it("still prices a legal multi-step plan and a human map click", async () => {
     const multi = await playTea({
+      visitedRoomIds: ["teahouse", "table"],
       provider: structured({
         prose: "테이블과 계산대를 지나 문 쪽으로 걷는다.",
         intent: "계산대를 거쳐 출입문으로 이동한다.",

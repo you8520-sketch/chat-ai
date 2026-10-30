@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { TRPG_ACTION_TYPES } from "./actionTypes";
+import { buildTrpgBotSystem, TRPG_BOT_SYSTEM } from "./botActions";
 import { BOT_EXPLORATION_NO_MOVE } from "./explorationMap";
 import {
   buildTrpgBotResponseFormat,
@@ -35,5 +36,17 @@ describe("botStructuredOutput", () => {
     assert.equal(parsed.movePlan, "table");
     assert.match(formatTrpgBotStructuredAsBody(parsed), /먼저 앉자/);
     assert.equal(parseTrpgBotStructuredAction("출입문으로 이동한다."), null);
+  });
+
+  it("keeps marker emit and JSON schema as exclusive output contracts", () => {
+    const structured = buildTrpgBotSystem({ structured: true });
+    assert.match(TRPG_BOT_SYSTEM, /<<<ACTION_TYPE>>>/);
+    assert.match(TRPG_BOT_SYSTEM, /No JSON/);
+    assert.doesNotMatch(TRPG_BOT_SYSTEM, /Output only the JSON object required by the response schema/);
+    assert.match(structured, /Output only the JSON object required by the response schema/);
+    assert.doesNotMatch(structured, /<<<ACTION_TYPE>>>/);
+    assert.doesNotMatch(structured, /<<<INTENT>>>/);
+    assert.doesNotMatch(structured, /No JSON/);
+    assert.doesNotMatch(structured, /After the finished prose, emit/);
   });
 });
