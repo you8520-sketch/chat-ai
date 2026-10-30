@@ -13,8 +13,10 @@ import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import {
   officialWorldScaleForPlan,
+  parseOfficialAuthoringAxes,
   resolveOfficialAuthoringPlan,
   ROFAN_PARITY_PLAN,
+  type OfficialAuthoringAxes,
   type OfficialAuthoringPlan,
 } from "@/lib/officialSupply/genreProfile";
 import {
@@ -836,16 +838,20 @@ export async function generateOfficialCharacterExperience(input: {
   transport: OfficialAuthorTransport;
   modelId?: string;
   experience: CharacterExperienceInput;
-}): Promise<OfficialCharacterExperience> {
+}): Promise<{ experience: OfficialCharacterExperience; axes: OfficialAuthoringAxes | null }> {
+  const chooseAxes = input.experience.chooseAxes === true;
   const completion = await input.transport.completeJson({
     task: "character_experience",
-    system: buildCharacterExperienceSystem(),
+    system: buildCharacterExperienceSystem(chooseAxes),
     user: buildCharacterExperienceUser(input.experience),
     schemaName: "official_character_experience",
     schema: { type: "object" },
     modelId: input.modelId,
   });
-  return parseOfficialCharacterExperience(parseAuthorJson(completion.text, "character_experience"));
+  const raw = parseAuthorJson(completion.text, "character_experience");
+  const experience = parseOfficialCharacterExperience(raw);
+  const axes = chooseAxes && isRecord(raw) ? parseOfficialAuthoringAxes(raw.axes) : null;
+  return { experience, axes };
 }
 
 export async function generateOfficialWorldBible(input: {

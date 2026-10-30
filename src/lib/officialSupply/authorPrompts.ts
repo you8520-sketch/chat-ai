@@ -139,33 +139,54 @@ export type CharacterExperienceInput = {
   gender: "male" | "female" | "other";
   castIntent: string;
   authoring: OfficialAuthoringPlan;
+  /** True when every authoring axis is on auto: the same call also chooses them. */
+  chooseAxes?: boolean;
 };
 
-export function buildCharacterExperienceSystem(): string {
+export function buildCharacterExperienceSystem(chooseAxes = false): string {
   return [
     "너는 한 명의 플레이어블 캐릭터 경험을 먼저 고르는 기획자다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
-    "키는 desire·contradiction·behavior·incident·tension·daily·cost·play·voice·firstAction 뿐이다.",
+    chooseAxes
+      ? "키는 desire·contradiction·behavior·incident·tension·daily·cost·play·voice·firstAction 10개이고, 함께 axes를 고른다."
+      : "키는 desire·contradiction·behavior·incident·tension·daily·cost·play·voice·firstAction 뿐이다.",
+    chooseAxes
+      ? "axes는 이 인물에게 맞는 문체(tone)·유머(humor)·전개(pacing)·작명(nameWordplay)이다. 장르 기본값을 그대로 쓰지 않고 이 인물의 성격·사건·플레이에서 고른다."
+      : "",
     "각 값은 12~180자의 구체적 문장이다. 세계 이름·세력 목록·장소 목록은 쓰지 않는다.",
     "직업표나 금지 소재를 따르지 않는다. 특정 장소·직업·소품을 기본값으로 두지 않는다.",
     "제작자가 castIntent에 적은 사용자 역할·관계·설정은 정본이므로 그대로 유지한다.",
     "AI가 임의로 플레이어의 역할·소지품·안건·방문 목적·관계 상태를 추가하지 않는다. castIntent에 없는 사용자 발화·감정·선택·결말도 만들지 않는다.",
     "firstAction은 castIntent에 고정된 사실만 전제하고, 플레이어의 발화나 감정 없이도 성립하는 이 인물 자신의 행동이다. tension은 이 인물이 장면으로 들고 나오는 긴장이다.",
-  ].join("\n");
+  ]
+    .filter((line) => line !== "")
+    .join("\n");
 }
 
 export function buildCharacterExperienceUser(input: CharacterExperienceInput): string {
   const plan = input.authoring;
+  const chooseAxes = input.chooseAxes === true;
   return [
     `장르: ${input.genre}`,
     `성별: ${input.gender}`,
     `캐스트 의도: ${input.castIntent}`,
     "자동으로 채운 의도는 대상과 연애 여부만 담고 있다. 그 문장에 없는 직업·사건을 정본으로 만들지 않는다. 사용자가 직접 적은 의도만 욕망과 첫 장면의 제약으로 따른다.",
-    ...formatAuthoringDirection(plan, ["tone", "humor", "pacing", "wordplay"]),
+    ...(chooseAxes
+      ? [
+          "문체·유머·전개·작명은 자동이다. 장르 기본값을 그대로 복사하지 말고, 이 인물의 성격·사건·플레이 경험에 맞춰 axes로 직접 고른다.",
+          "axes.tone은 serious·lyrical·light·dry·satirical·tragic, axes.humor는 none·light·central, axes.pacing은 narration·balanced·dialogue, axes.nameWordplay는 none·nickname·pun 중 하나다.",
+        ]
+      : formatAuthoringDirection(plan, ["tone", "humor", "pacing", "wordplay"])),
     "",
     "이 인물이 원하는 것, 모순, 남과 다른 행동, 스스로 일으키거나 피하려는 일, 이 인물이 장면으로 들고 나오는 긴장, 일상과 취향, 대가, 플레이 경험, 말투, 플레이어의 말·감정 없이도 스스로 하는 첫 행동을 고른다.",
     "아래 틀의 값을 모두 채워 JSON 한 개만 출력한다.",
-    `{"desire":"","contradiction":"","behavior":"","incident":"","tension":"","daily":"","cost":"","play":"","voice":"","firstAction":""}`,
+    ...(chooseAxes
+      ? [
+          `{"axes":{"tone":"","humor":"","pacing":"","nameWordplay":""},"desire":"","contradiction":"","behavior":"","incident":"","tension":"","daily":"","cost":"","play":"","voice":"","firstAction":""}`,
+        ]
+      : [
+          `{"desire":"","contradiction":"","behavior":"","incident":"","tension":"","daily":"","cost":"","play":"","voice":"","firstAction":""}`,
+        ]),
   ].join("\n");
 }
 
@@ -718,7 +739,7 @@ export function buildCharacterVoiceSystem(
     ...(plan.profile.key === "genre_neutral"
       ? [
           "- 첫 대사·첫 행동에서 정본의 말투와 반응 방식(회피·직설·비꼼·과장 등)이 실제로 드러난다. 정본의 예시 문장을 그대로 복사하지는 않는다.",
-          "- 고정 사실에 없는 유저의 발화·감정·방문 목적을 대사나 서술로 확정하지 않는다. 유저는 그 자리에 있다는 최소 단서만 가진다.",
+          "- 고정 사실에 없는 유저의 발화·감정·방문 목적·역할을 대사나 서술로 확정하지 않는다. 유저는 그 자리에 있다는 최소 단서만 가진다.",
         ]
       : []),
     "- 소개문·자기소개·세계관 설명 덤프 금지. 이후 RP 문체의 스타일 앵커가 되는 웹소설형 출력.",

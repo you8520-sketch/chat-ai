@@ -147,7 +147,7 @@ describe("G5-3S B — the canon voice reaches the opening", () => {
     const modern = buildCharacterVoiceSystem(true, MODERN_PLAN);
     assert.match(modern, /첫 대사·첫 행동에서 정본의 말투와 반응 방식/);
     assert.match(modern, /정본의 예시 문장을 그대로 복사하지는 않는다/);
-    assert.match(modern, /고정 사실에 없는 유저의 발화·감정·방문 목적을 대사나 서술로 확정하지 않는다/);
+    assert.match(modern, /고정 사실에 없는 유저의 발화·감정·방문 목적·역할을 대사나 서술로 확정하지 않는다/);
   });
 
   it("does not impose a single friendly register", () => {
@@ -159,7 +159,7 @@ describe("G5-3S B — the canon voice reaches the opening", () => {
 
   it("keeps the unspoken-state rule but scopes it to facts the sheet did not fix", () => {
     const modern = buildCharacterVoiceSystem(true, MODERN_PLAN);
-    assert.match(modern, /고정 사실에 없는 유저의 발화·감정·방문 목적을 대사나 서술로 확정하지 않는다/);
+    assert.match(modern, /고정 사실에 없는 유저의 발화·감정·방문 목적·역할을 대사나 서술로 확정하지 않는다/);
   });
 
   it("leaves the rofan greeting wording byte-identical", () => {

@@ -298,6 +298,67 @@ export function resolveAdminAuthoringDirection(input: {
 
 export const OFFICIAL_SUPPORTED_GENRES: readonly string[] = CHARACTER_GENRES;
 
+export type OfficialAuthoringAxes = {
+  tone: OfficialNarrativeTone;
+  humor: OfficialHumorLevel;
+  pacing: OfficialNarrativePacing;
+  nameWordplay: OfficialNameWordplay;
+};
+
+const AUTHORING_AXIS_VALUES = {
+  tone: new Set<string>(["serious", "lyrical", "light", "dry", "satirical", "tragic"]),
+  humor: new Set<string>(["none", "light", "central"]),
+  pacing: new Set<string>(["narration", "balanced", "dialogue"]),
+  nameWordplay: new Set<string>(["none", "nickname", "pun"]),
+} as const;
+
+/** Model-chosen auto axes. Invalid or missing values are ignored, never guessed. */
+export function parseOfficialAuthoringAxes(raw: unknown): OfficialAuthoringAxes | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const rec = raw as Record<string, unknown>;
+  const { tone, humor, pacing, nameWordplay } = rec;
+  if (typeof tone !== "string" || !AUTHORING_AXIS_VALUES.tone.has(tone)) return null;
+  if (typeof humor !== "string" || !AUTHORING_AXIS_VALUES.humor.has(humor)) return null;
+  if (typeof pacing !== "string" || !AUTHORING_AXIS_VALUES.pacing.has(pacing)) return null;
+  if (typeof nameWordplay !== "string" || !AUTHORING_AXIS_VALUES.nameWordplay.has(nameWordplay)) {
+    return null;
+  }
+  return {
+    tone: tone as OfficialNarrativeTone,
+    humor: humor as OfficialHumorLevel,
+    pacing: pacing as OfficialNarrativePacing,
+    nameWordplay: nameWordplay as OfficialNameWordplay,
+  };
+}
+
+/** True when the admin left every axis on auto for this run. */
+export function isFullyAutoAuthoringSelection(selection: {
+  tone?: string;
+  humor?: string;
+  pacing?: string;
+  nameWordplay?: string;
+}): boolean {
+  return [selection.tone, selection.humor, selection.pacing, selection.nameWordplay].every(
+    (value) => value === undefined || value === "auto"
+  );
+}
+
+/**
+ * Auto axes come from the character's own experience, not from a fixed genre
+ * preset. Explicit admin choices always win; a malformed/missing model answer
+ * falls back to the genre recommendation instead of inventing values.
+ */
+export function resolveAuthoringPlanAfterExperience(input: {
+  direction: OfficialAuthoringDirection & RecommendedAuthoringAxes;
+  autoAxes: boolean;
+  axes: OfficialAuthoringAxes | null | undefined;
+}): OfficialAuthoringPlan {
+  if (input.autoAxes && input.axes) {
+    return resolveOfficialAuthoringPlan({ genre: input.direction.genre, ...input.axes });
+  }
+  return resolveOfficialAuthoringPlan(input.direction);
+}
+
 const TONE_LINES: Record<OfficialNarrativeTone, string> = {
   serious: "문체: 진지하게 쓴다. 갈등의 무게를 농담으로 덜지 않는다.",
   lyrical: "문체: 서정적이고 감각적으로 쓴다. 분위기를 설명으로 덮지 않고 구체적 장면으로 만든다.",
