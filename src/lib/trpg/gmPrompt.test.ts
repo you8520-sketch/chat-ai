@@ -328,8 +328,8 @@ describe("TRPG GM prompt/parse", () => {
 
   it("F: closing GM beat matches the scene instead of a fixed question", () => {
     assert.match(TRPG_GM_SYSTEM, /A quiet handoff is one sentence/);
-    assert.match(TRPG_GM_SYSTEM, /Show what changed or what is still unresolved/);
-    assert.match(TRPG_GM_SYSTEM, /Do not end on a stock question/);
+    assert.match(TRPG_GM_SYSTEM, /Show what changed. Do not ask what the player will do/);
+    assert.match(TRPG_GM_SYSTEM, /Do not ask what the player will do/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /about what the player will do/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /100–180 Korean chars/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /100–250/);
@@ -393,8 +393,8 @@ describe("TRPG GM prompt/parse", () => {
   });
 
   it("F2: closing ends on immediate pressure when control returns", () => {
-    assert.match(TRPG_GM_SYSTEM, /Show what changed or what is still unresolved/);
-    assert.match(TRPG_GM_SYSTEM, /Do not end on a stock question/);
+    assert.match(TRPG_GM_SYSTEM, /Show what changed. Do not ask what the player will do/);
+    assert.match(TRPG_GM_SYSTEM, /Do not ask what the player will do/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /about what the player will do/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /visible options/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /closed menu/);
@@ -453,7 +453,7 @@ describe("TRPG GM prompt/parse", () => {
 
     assert.match(closing, /A quiet handoff is one sentence/);
     assert.doesNotMatch(closing, /100–180 Korean chars/);
-    assert.match(closing, /Show what changed or what is still unresolved/);
+    assert.match(closing, /Show what changed. Do not ask what the player will do/);
     assert.match(closing, /do not ask for a next action/);
     assert.doesNotMatch(closing, /players supply the approach/);
     assert.doesNotMatch(craft, /\boptions\b/i);
