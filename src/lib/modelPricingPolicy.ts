@@ -45,6 +45,13 @@ const DEFAULT_POLICIES: Record<string, Omit<ModelPricingPolicy, "modelId">> = {
     expectedProviderModelId: "deepseek-v4.1-flash",
     pricingMode: "standard",
   },
+  "deepseek-v4.1-flash-1017": {
+    provider: "cheaperinference",
+    baselineMode: "PROVIDER_PEAK",
+    autoApply: false,
+    expectedProviderModelId: "deepseek-v4.1-flash-1017",
+    pricingMode: "standard",
+  },
   "gemini-3.1-pro-preview": {
     provider: "cheaperinference",
     baselineMode: "PROVIDER_STANDARD",

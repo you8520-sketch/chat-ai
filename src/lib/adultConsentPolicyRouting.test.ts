@@ -33,7 +33,7 @@ import {
 } from "@/lib/adultDeliveryPlan";
 import { resolveAdultRefusalFallbackModelId } from "@/lib/adultHandoffSourceRouting";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
 } from "@/lib/chatModels";
 import type { buildContext as BuildContextFn } from "@/services/contextBuilder";
@@ -46,7 +46,7 @@ const FROZEN_WIRE_POLICY = {
 } as const;
 
 const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
-const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL;
 const ALLOWED_WITH_CNC = ["standard", "cnc_opt_in"] as const;
 
 const STANDARD_EXPLICIT_INPUT =

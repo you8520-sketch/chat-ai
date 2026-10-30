@@ -4,10 +4,12 @@ import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import { normalizeBillableUsage } from "@/lib/billingUsage";
 import { isPhase2DeepSeekPublishedBillingModel } from "@/lib/chatBillingContractDispatch";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
+  isCheaperInferenceDeepSeekV41Flash1017Model,
   isCheaperInferenceDeepSeekV41FlashModel,
   isCheaperInferenceModel,
   isDeepSeekMainRpFamilyModel,
@@ -124,6 +126,52 @@ describe("deepseekV41FlashIntegration", () => {
     );
     assert.equal(backupBody.model, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
     assert.equal(backupBody.thinking, undefined);
+  });
+
+  it("G2 — 1017 stays distinct from Main RP V4.1 and has no OpenRouter backup", () => {
+    assert.notEqual(
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
+    );
+    assert.equal(
+      isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL),
+      true
+    );
+    assert.equal(
+      isCheaperInferenceDeepSeekV41FlashModel(
+        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL
+      ),
+      false
+    );
+    assert.equal(
+      isCheaperInferenceDeepSeekV41Flash1017Model(
+        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL
+      ),
+      true
+    );
+    assert.equal(
+      resolveDeepSeekLogicalModel(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL),
+      "flash_v41_1017"
+    );
+    assert.equal(
+      resolveDeepSeekFailoverRouteKind({
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
+        adultHandoff: true,
+      }),
+      "adult_handoff"
+    );
+    assert.equal(hasDeepSeekOpenRouterBackupModel("flash_v41_1017"), false);
+    assert.throws(() => resolveDeepSeekBackupModelId("flash_v41_1017"));
+    const body = adaptCheaperInferenceChatBody({
+      model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL,
+      messages: [{ role: "user", content: "hello" }],
+    });
+    assert.equal(body.model, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL);
+    const backupBody = buildDeepSeekFailoverBackupBody(
+      { model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL, messages: [] },
+      "flash_v41_1017"
+    );
+    assert.equal(backupBody.model, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL);
   });
 
   it("H — namespace V4 Pro alias exact", () => {

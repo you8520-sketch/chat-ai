@@ -124,6 +124,10 @@ export const CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 /** Cheaper Inference — DeepSeek V4.1 Flash (Main RP fast/value; distinct from 0731). */
 export const CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL = "deepseek-v4.1-flash";
 
+/** Cheaper Inference — DeepSeek V4.1 Flash-1017. Distinct from Main RP `deepseek-v4.1-flash`. */
+export const CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL =
+  "deepseek-v4.1-flash-1017";
+
 /** Official DeepSeek API name for V4.1 Flash (direct API); CI uses dotted id above. */
 export const DEEPSEEK_V41_FLASH_OFFICIAL_API_NAME = "deepseek-flash";
 
@@ -459,6 +463,10 @@ export function isCheaperInferenceDeepSeekV41FlashModel(modelId: string): boolea
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 }
 
+export function isCheaperInferenceDeepSeekV41Flash1017Model(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL;
+}
+
 export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
@@ -495,6 +503,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_1017_MODEL ||
     id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL
   );
 }
@@ -529,6 +538,7 @@ export function isDeepSeekModel(modelId: string): boolean {
   return (
     isDeepSeekV4ProModel(id) ||
     isCheaperInferenceDeepSeekV41FlashModel(id) ||
+    isCheaperInferenceDeepSeekV41Flash1017Model(id) ||
     isCheaperInferenceDeepSeekV4FlashModel(id) ||
     id === OPENROUTER_DEEPSEEK_V3_MODEL ||
     id.startsWith("deepseek/") ||

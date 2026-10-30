@@ -2,10 +2,8 @@ import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { GENERAL_ROUTE_BRIDGE_USER_MARKER } from "@/lib/providerHistoryPolicy";
 import type { ChatMsg } from "@/lib/ai";
 import { RAW_HISTORY_COMPLETE_EXCHANGES } from "@/lib/hybridMemory";
-import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  normalizeDeepSeekV4ProModelId,
-} from "@/lib/chatModels";
+import { normalizeDeepSeekV4ProModelId } from "@/lib/chatModels";
+import { ADULT_SCENE_MODEL_POLICY } from "@/lib/adultSceneModelPolicy";
 import {
   classifyChatOocIntent,
   extractOocRoutingText,
@@ -262,7 +260,7 @@ export function resolveAdultRoutingConfig(
   return {
     enabled: envBool(env.ADULT_SCENE_ROUTING_ENABLED, true),
     adultModelId: normalizeDeepSeekV4ProModelId(
-      env.ADULT_MODEL_ID?.trim() || CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      env.ADULT_MODEL_ID?.trim() || ADULT_SCENE_MODEL_POLICY.primaryModelId
     ),
     providerOrder: envList(env.ADULT_MODEL_PROVIDER_ORDER),
     providerOnly: envList(env.ADULT_MODEL_PROVIDER_ONLY),
