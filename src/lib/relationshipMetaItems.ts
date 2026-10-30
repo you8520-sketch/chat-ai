@@ -151,6 +151,7 @@ export function expandPossessionTransferRemovals(
     const transferred = new Set(parsed.items.map((i) => i.trim()).filter(Boolean));
     if (transferred.size === 0) continue;
 
+    const matches: Array<{ raw: string; remaining: string[]; person: string }> = [];
     for (const raw of prevEntries) {
       const prev = parsePossessionEntry(raw.trim());
       if (!prev) continue;
@@ -159,11 +160,15 @@ export function expandPossessionTransferRemovals(
       const remaining = prev.items.filter((i) => !transferred.has(i.trim()));
       const removedAny = prev.items.some((i) => transferred.has(i.trim()));
       if (!removedAny) continue;
+      matches.push({ raw, remaining, person: prev.person });
+    }
 
-      itemsRemove.push(raw);
-      if (remaining.length > 0) {
-        itemsRevise.push(`${prev.person}: ${remaining.join(", ")}`);
-      }
+    // Same name on two of B's lines is two objects. Do not guess which one moved.
+    if (matches.length !== 1) continue;
+    const match = matches[0]!;
+    itemsRemove.push(match.raw);
+    if (match.remaining.length > 0) {
+      itemsRevise.push(`${match.person}: ${match.remaining.join(", ")}`);
     }
   }
 

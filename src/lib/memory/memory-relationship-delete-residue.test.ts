@@ -634,6 +634,67 @@ describe("relationship ledger last-turn delete residue", () => {
     assert.deepEqual(promises(), [LATER_PROMISE.text]);
   });
 
+  it("restores A's ring after deleting A→B even when C holds a separate same-named ring", () => {
+    const previousOwner = "TestChar: 수류탄 핀 반지";
+    const handoff = "TestChar→Tester: 수류탄 핀 반지";
+    const otherRing = "서연: 수류탄 핀 반지";
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "반지를 만들어 뒀다",
+      assistantText: "TestChar가 수류탄 핀 반지를 가지고 있다.",
+    });
+    applyDelta(2, 1, { items: [previousOwner] });
+    applyUnscopedDelta({ items: [otherRing] }, 1);
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "반지를 건넨다",
+      assistantText: "TestChar가 Tester에게 수류탄 핀 반지를 건넸다.",
+    });
+    applyDelta(4, 3, { items: [handoff] });
+    assert.deepEqual([...items()].sort(), [handoff, otherRing].sort());
+    const beforeDeletePrompt = formatMemoryMetaForPrompt(loadChatRelationshipMeta(CHAT_ID, NAMES));
+    assert.match(beforeDeletePrompt ?? "", /Tester: 수류탄 핀 반지/);
+    assert.match(beforeDeletePrompt ?? "", /서연: 수류탄 핀 반지/);
+
+    deleteLastTurn(3, 4);
+    assert.equal(items().includes(previousOwner), true);
+    assert.equal(items().includes(otherRing), true);
+    assert.equal(items().includes(handoff), false);
+    const afterDeletePrompt = formatMemoryMetaForPrompt(loadChatRelationshipMeta(CHAT_ID, NAMES));
+    assert.match(afterDeletePrompt ?? "", /TestChar: 수류탄 핀 반지/);
+    assert.match(afterDeletePrompt ?? "", /서연: 수류탄 핀 반지/);
+  });
+
+  it("does not restore A's transferred ring when a later handoff moved that same object on", () => {
+    insertTurn({
+      userId: 1,
+      assistantId: 2,
+      userText: "반지와 지갑을 챙겼다",
+      assistantText: "TestChar가 수류탄 핀 반지와 지갑을 가지고 있다.",
+    });
+    applyDelta(2, 1, { items: ["TestChar: 수류탄 핀 반지, 지갑"] });
+    insertTurn({
+      userId: 3,
+      assistantId: 4,
+      userText: "반지를 건넨다",
+      assistantText: "TestChar가 Tester에게 수류탄 핀 반지를 건넸다.",
+    });
+    applyDelta(4, 3, { items: ["TestChar→Tester: 수류탄 핀 반지"] });
+    applyUnscopedDelta({ items: ["Tester→서연: 수류탄 핀 반지"] }, 1);
+    assert.deepEqual(
+      [...items()].sort(),
+      ["TestChar: 지갑", "Tester→서연: 수류탄 핀 반지"].sort()
+    );
+
+    deleteLastTurn(3, 4);
+    assert.equal(items().includes("TestChar: 지갑"), true);
+    assert.equal(items().includes("TestChar: 수류탄 핀 반지, 지갑"), false);
+    assert.equal(items().some((line) => line.includes("수류탄 핀 반지") && line.startsWith("TestChar")), false);
+    assert.equal(items().includes("Tester→서연: 수류탄 핀 반지"), true);
+  });
+
   for (const [label, toB, bToC] of [
     ["gift lines", "TestChar→Tester: 청동열쇠", "Tester→서연: 청동열쇠"],
   ] as const) {

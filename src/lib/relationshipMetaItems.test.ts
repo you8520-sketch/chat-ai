@@ -53,6 +53,13 @@ describe("relationshipMetaItems", () => {
     assert.deepEqual(patch.itemsRevise, ["레온: 지갑"]);
   });
 
+  it("does not drop B's remaining same-named ring when one of two is handed on", () => {
+    const prev = ["오스카→제이: 수류탄 핀 반지", "식스→제이: 수류탄 핀 반지"];
+    const patch = expandPossessionTransferRemovals(prev, ["제이→민수: 수류탄 핀 반지"]);
+    assert.deepEqual(patch.itemsRemove, []);
+    assert.deepEqual(patch.itemsRevise, []);
+  });
+
   it("removes the previous handoff line when the receiver passes the item on", () => {
     const prev = ["오스카→제이: 수류탄 핀 반지"];
     const patch = expandPossessionTransferRemovals(prev, ["제이→식스: 수류탄 핀 반지"]);

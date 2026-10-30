@@ -190,6 +190,30 @@ describe("mergeMemoryMeta possession", () => {
     );
   });
 
+  it("keeps B's other same-named ring when one of two is handed to C", () => {
+    const prev = {
+      ...EMPTY_MEMORY_META,
+      items: ["오스카→제이: 수류탄 핀 반지", "식스→제이: 수류탄 핀 반지"],
+    };
+    const merged = mergeMemoryMeta(
+      prev,
+      { items: ["제이→민수: 수류탄 핀 반지"] },
+      { charName: "8", userName: "제이" }
+    );
+    assert.deepEqual(
+      [...merged.items].sort(),
+      [
+        "오스카→제이: 수류탄 핀 반지",
+        "식스→제이: 수류탄 핀 반지",
+        "제이→민수: 수류탄 핀 반지",
+      ].sort()
+    );
+    assert.equal(
+      formatMemoryMetaForPrompt(merged),
+      "[Memory — 참고, 우선순위 2순위 하위]\n관계:\n소지품:\n제이: 수류탄 핀 반지\n민수: 수류탄 핀 반지"
+    );
+  });
+
   it("removes items and drops auto thoughts during merge", () => {
     const prev = {
       ...EMPTY_MEMORY_META,
