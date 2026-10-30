@@ -43,11 +43,34 @@ const AMBIGUOUS_ADULT_TERMS = new Set(["자위", "자지", "보지", "사정"]);
 
 const NEGATIVE_SEE_NEXT = /^(?:않|못|말)/u;
 const NEGATIVE_SEE_EOJEOL = /^(?:보지|보지는|보지도)$/u;
-/** Ordinary circumstance particles on 사정 (`누구의 사정도`). Bare, object, and verbal forms stay adult. */
+/** Ordinary circumstance particles on 사정 (`누구의 사정도`). Bare and verbal forms stay adult. */
 const ORDINARY_SAJEONG_EOJEOL = /^사정(?:이|은|는|도|에|과|와|만|으로|로|까지|뿐|처럼|보다|상|없이)$/u;
+/** Object form is not ordinary by itself. `사정을` stays adult unless a circumstance predicate follows. */
+const SAJEONG_OBJECT_EOJEOL = "사정을";
+/** At most two modifiers between the object and the predicate (`함부로 공개하지`). */
+const SAJEONG_CIRCUMSTANCE_ADVERB =
+  /^(?:함부로|절대|굳이|쉽게|자세히|마구|자꾸|그냥|결코|전혀|별로|더|잘|못|안|모두|아직|제대로|먼저)$/u;
+/**
+ * Asking, telling, considering, or hiding a circumstance.
+ * Sexual object uses (`사정을 했다`, `사정을 쏟았다`, `사정을 참지`) do not match.
+ */
+const SAJEONG_CIRCUMSTANCE_PREDICATE =
+  /^(?:공개|묻|물어|여쭙|여쭤|고려|알리|말하|말해|말한|캐묻|떠들|밝히|숨기|존중|배려|이해|헤아리|감안|생각|살피|들추|추궁|언급|거론|폭로|누설|발설|떠벌|감추|간섭|참견|따지|알지|알아|알고)/u;
 
-function isOrdinaryCircumstanceSajeong(eojeol: string): boolean {
-  return ORDINARY_SAJEONG_EOJEOL.test(eojeol);
+function isOrdinaryObjectSajeong(eojeols: readonly string[], index: number): boolean {
+  if ((eojeols[index] ?? "") !== SAJEONG_OBJECT_EOJEOL) return false;
+  let cursor = index + 1;
+  let skipped = 0;
+  while (cursor < eojeols.length && skipped < 2 && SAJEONG_CIRCUMSTANCE_ADVERB.test(eojeols[cursor] ?? "")) {
+    cursor += 1;
+    skipped += 1;
+  }
+  return SAJEONG_CIRCUMSTANCE_PREDICATE.test(eojeols[cursor] ?? "");
+}
+
+function isOrdinaryCircumstanceSajeong(eojeols: readonly string[], index: number): boolean {
+  const eojeol = eojeols[index] ?? "";
+  return ORDINARY_SAJEONG_EOJEOL.test(eojeol) || isOrdinaryObjectSajeong(eojeols, index);
 }
 
 /** A banned term split only by evasion separators, not by a real eojeol boundary inside a longer word. */
@@ -89,7 +112,7 @@ export function findAdultTermsInText(raw: string): string[] {
       const eojeol = eojeols[i] ?? "";
       if (!(ambiguous ? eojeol.startsWith(term) : eojeol.includes(term))) continue;
       if (ambiguous && term === "보지" && NEGATIVE_SEE_EOJEOL.test(eojeol) && NEGATIVE_SEE_NEXT.test(eojeols[i + 1] ?? "")) continue;
-      if (ambiguous && term === "사정" && isOrdinaryCircumstanceSajeong(eojeol)) continue;
+      if (ambiguous && term === "사정" && isOrdinaryCircumstanceSajeong(eojeols, i)) continue;
       matched = true;
       break;
     }

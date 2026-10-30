@@ -202,12 +202,22 @@ describe("G5-2 admin private draft save", () => {
     clearAdminAuthorPreviewsForTests();
     const pack = candidate("g5-modern-comedy-e");
     const plan = resolveOfficialAuthoringPlan(recommendOfficialAuthoringDirection("현대/일상"));
-    const preview = holdAdminAuthorManuscriptForTests({
+    const ordinary = holdAdminAuthorManuscriptForTests({
       adminUserId: ADMIN.id,
       plan,
       world: pack.world,
       brief: pack.brief,
       bible: pack.bible,
+    });
+    assert.equal(ordinary.qaOk, true);
+    assert.equal(ordinary.issues.some((issue) => issue.code === "sfw_public_text_has_adult_terms"), false);
+    const bible = { ...pack.bible, greeting: `${pack.bible.greeting}\n사정했다` };
+    const preview = holdAdminAuthorManuscriptForTests({
+      adminUserId: ADMIN.id,
+      plan,
+      world: pack.world,
+      brief: pack.brief,
+      bible,
     });
     assert.equal(preview.qaOk, false);
     assert.ok(preview.issues.some((issue) => issue.code === "sfw_public_text_has_adult_terms"));
