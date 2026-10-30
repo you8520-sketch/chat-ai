@@ -251,6 +251,24 @@ export function withStreamSpeed(
   };
 }
 
+/** True when only stream reveal cadence changed — layout/scroll-affecting prefs are identical. */
+export function isStreamSpeedOnlyDisplayPrefsChange(
+  prev: ChatDisplayPrefs,
+  next: ChatDisplayPrefs
+): boolean {
+  if (
+    prev.streamIntervalMs === next.streamIntervalMs &&
+    prev.streamCharsPerTick === next.streamCharsPerTick
+  ) {
+    return false;
+  }
+  const strip = (p: ChatDisplayPrefs) => {
+    const { streamIntervalMs: _ms, streamCharsPerTick: _cp, ...rest } = p;
+    return rest;
+  };
+  return JSON.stringify(strip(prev)) === JSON.stringify(strip(next));
+}
+
 export function fontFamilyCss(id: string): string {
   return CHAT_FONT_OPTIONS.find((f) => f.id === id)?.css ?? CHAT_FONT_OPTIONS[0].css;
 }
