@@ -152,8 +152,8 @@ function withIdentityGuard(roles: readonly ArtifactRoleEntry[]): ArtifactRoleEnt
   return roles.map((entry) => {
     const multipleWearers = (wearersByItem.get(entry.itemKey)?.size ?? 0) > 1;
     if (
-      multipleWearers &&
       entry.role === "later_wore" &&
+      (multipleWearers || entry.sameObject === "confirmed") &&
       !EXPLICIT_IDENTITY_QUOTE.test(entry.quote)
     ) {
       return { ...entry, sameObject: "unconfirmed" };

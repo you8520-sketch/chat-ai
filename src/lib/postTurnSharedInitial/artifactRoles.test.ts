@@ -128,6 +128,21 @@ describe("artifact role lifecycle", () => {
     assert.equal(merged.facts[2]?.attribute, "proposal");
   });
 
+  it("downgrades a later-wearer identity claim without an explicit same-object quote", () => {
+    const facts = artifactRolesToEpisodicFacts([
+      {
+        role: "later_wore",
+        actor: "오스카",
+        actorKey: "oscar",
+        item: "은빛 반지",
+        itemKey: "silver_ring",
+        quote: "다음 날 오스카는 반지를 끼고 있었다.",
+        sameObject: "confirmed",
+      },
+    ]);
+    assert.match(facts[0]?.fact_text ?? "", /같은 물건인지는 확인되지 않는다/);
+  });
+
   it("can persist role facts even when the free-form episodic section failed", () => {
     const merged = mergeArtifactRolesIntoEpisodic(
       { present: true, valid: false, facts: [] },
