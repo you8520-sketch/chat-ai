@@ -2313,7 +2313,12 @@ function commitPendingGmResult(
   const roundNumber = (
     db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
   ).round_number;
-  stripUnacceptedItemProposals(parsed.delta, humanSeatIds);
+  const aiLockedBodies = new Map(
+    lockedSubs
+      .filter((sub) => !humanSeatIds.has(sub.participantId))
+      .map((sub) => [sub.participantId, sub.body] as const)
+  );
+  stripUnacceptedItemProposals(parsed.delta, humanSeatIds, aiLockedBodies);
   const explorationCommit = opts.regenerate
     ? null
     : planExplorationCommit(db, {

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { committedActionText } from "./actionSemantics";
 import { hangulObjectParticle } from "./commandDock";
 import { TRPG_INVENTORY_ITEM_NAME_LIMIT } from "./inventory";
 import { parseJson } from "./store";
@@ -9,7 +10,8 @@ import type { TrpgStateDelta } from "./types";
  *
  * GM output is a proposal (`itemOffers`), the player's submit is the acceptance
  * (`acceptItems`), and the server commit is ownership. A GM `inventoryAdd` for a
- * human PC is never ownership authority; AI companion seats keep that path.
+ * human PC is never ownership authority. An AI companion `inventoryAdd` commits
+ * only when that seat's lock names the same item as a committed act.
  */
 
 export const TRPG_ITEM_OFFER_MAX_PER_SEAT = 4;
@@ -131,9 +133,14 @@ export function formatAcceptedItemsAction(items: readonly string[]): string {
 
 /**
  * Commit boundary, before server exploration results are applied: human seats
- * lose GM-proposed `inventoryAdd`; AI seats lose `itemOffers`. Idempotent.
+ * lose GM-proposed `inventoryAdd`; AI seats lose `itemOffers` and any
+ * `inventoryAdd` the lock did not take. Idempotent.
  */
-export function stripUnacceptedItemProposals(delta: TrpgStateDelta, humanSeatIds: ReadonlySet<number>): void {
+export function stripUnacceptedItemProposals(
+  delta: TrpgStateDelta,
+  humanSeatIds: ReadonlySet<number>,
+  aiLockedBodies: ReadonlyMap<number, string> = new Map()
+): void {
   for (const patch of delta.players) {
     if (humanSeatIds.has(patch.participantId)) {
       delete patch.inventoryAdd;
@@ -142,6 +149,15 @@ export function stripUnacceptedItemProposals(delta: TrpgStateDelta, humanSeatIds
       if (!patch.itemOffers?.length) delete patch.itemOffers;
     } else {
       delete patch.itemOffers;
+      if (patch.inventoryAdd?.length) {
+        const lock = aiLockedBodies.get(patch.participantId) ?? "";
+        const committed = committedActionText(lock);
+        const kept = committed
+          ? patch.inventoryAdd.filter((item) => item && lock.includes(item))
+          : [];
+        if (kept.length) patch.inventoryAdd = kept;
+        else delete patch.inventoryAdd;
+      }
     }
   }
 }
