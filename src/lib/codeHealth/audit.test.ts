@@ -11,6 +11,10 @@ import { buildImportGraph, scanCriticalSecrets, scanUnusedFiles, walkSourceFiles
 import type { CodeHealthCandidate } from "@/lib/codeHealth/types";
 import { CODE_HEALTH_AUDIT_MUTATES_PRODUCTION, formatTrend } from "@/lib/codeHealth/types";
 
+function openRouterInferenceKey(body = "ab".repeat(32)): string {
+  return `sk-or-v1-${body}`;
+}
+
 function writeTree(root: string, files: Record<string, string>): void {
   for (const [rel, text] of Object.entries(files)) {
     const abs = path.join(root, rel);
@@ -116,82 +120,130 @@ describe("code health classification", () => {
     assert.deepEqual(hits, []);
   });
 
-  it("ignores regex redaction patterns and test canaries but keeps realistic embedded credentials", () => {
-    const deterministicOpenRouter =
-      "sk-or-v1-deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-    const deterministicAnthropic =
-      "sk-ant-api03-deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef00";
-    const deterministicAws = "AKIAIOSFODNN7EXAMPLE";
-    const pem = `-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7M
------END RSA PRIVATE KEY-----`;
-    const falsePositiveFixtures: Array<{ relPath: string; text: string }> = [
-      {
-        relPath: "scripts/lib/gemini38AxisLiveCompare.ts",
-        text: `const errorText = body.slice(0, 500).replace(/sk-or-[A-Za-z0-9_-]+/g, "[REDACTED]");\n`,
-      },
-      {
-        relPath: "src/lib/decisionModelRadar.ts",
-        text: `const sanitized = detail.replace(/sk-or-[A-Za-z0-9_-]+/g, "[redacted]");\n`,
-      },
-      {
-        relPath: "src/lib/decisionModelRadar.test.ts",
-        text:
-          'const message = format("Bearer sk-or-secretvalue");\n' +
-          'assert.doesNotMatch(message, /sk-or-secretvalue/);\n',
-      },
-      {
-        relPath: "src/app/api/admin/runtime-settings/route.test.ts",
-        text: 'const key = "sk-or-v1-runtime-route-canary-0001";\n',
-      },
-      {
-        relPath: "src/lib/adminEffectiveRuntimeSettings.test.ts",
-        text: 'const env = { OPENROUTER_API_KEY: "sk-or-v1-runtime-projection-canary-0001" };\n',
-      },
-      {
-        relPath: "src/lib/rpQualityPaidRunner.test.ts",
-        text: 'process.env.OPENROUTER_API_KEY = "sk-or-production-lookalike-0001";\n',
-      },
-    ];
-    assert.deepEqual(
-      scanCriticalSecrets(
-        falsePositiveFixtures.map((fixture) => ({
-          ...fixture,
-          absPath: `/tmp/${fixture.relPath}`,
-        }))
-      ),
-      []
-    );
+  it("flags published credential shapes and ignores masking patterns and short fixtures", () => {
+    const openRouter = openRouterInferenceKey();
+    const anthropicCanary = `sk-ant-api03-${"canary".padEnd(93, "A")}AA`;
+    const anthropic = `sk-ant-api03-${"lookalike".padEnd(93, "A")}AA`;
+    const anthropicAdmin = `sk-ant-admin01-${"B".repeat(93)}AA`;
+    const management = `sk-or-mgmt-${"a1".repeat(10)}`;
+    assert.equal(openRouter.slice("sk-or-v1-".length), "ab".repeat(32));
+    assert.equal(anthropicCanary.includes("canary"), true);
+    assert.equal(anthropicCanary.slice("sk-ant-api03-".length, -2).length, 93);
+    assert.equal(anthropic.slice("sk-ant-api03-".length, -2).length, 93);
+    assert.equal(anthropic.endsWith("AA"), true);
+    assert.equal(management.slice("sk-or-mgmt-".length).length, 20);
 
-    const realisticHits = scanCriticalSecrets([
+    const absent = [
+      `const errorText = body.slice(0, 500).replace(/sk-or-[A-Za-z0-9_-]+/g, "[REDACTED]");\n`,
+      `const sanitized = detail.replace(/sk-or-[A-Za-z0-9_-]+/g, "[redacted]");\n`,
+      'const message = format("Bearer sk-or-secretvalue");\nassert.doesNotMatch(message, /sk-or-secretvalue/);\n',
+      'const key = "sk-or-v1-runtime-route-canary-0001";\n',
+      'const env = { OPENROUTER_API_KEY: "sk-or-v1-runtime-projection-canary-0001" };\n',
+      'process.env.OPENROUTER_API_KEY = "sk-or-production-lookalike-0001";\n',
+      'process.env.OPENROUTER_API_KEY = "sk-or-production-lookalike-dispatch";\n',
+      "assert.doesNotMatch(stdout, /sk-or-|ci_liv|Bearer /);\n",
+      `export function Widget(total: number, count: number) {
+        const ratio = total / count;
+        const label = \`value \${total / count}\`;
+        return <span title={label}>{ratio}</span>;
+      }\n`,
+      `export const key = "sk-or-v1-${"a".repeat(63)}";\n`,
+      'export const key = "sk-or-mgmt-test";\n',
+    ];
+    for (const text of absent) {
+      assert.deepEqual(
+        scanCriticalSecrets([{ relPath: "src/lib/leak.ts", absPath: "/tmp/leak.ts", text }]),
+        [],
+        "short fixture or masking pattern"
+      );
+    }
+
+    const present: Array<{ relPath: string; text: string }> = [
+      { relPath: "src/lib/leak.ts", text: `export const key = "${openRouter}";\n` },
+      { relPath: "src/lib/leak.ts", text: `export const key = "${anthropicCanary}";\n` },
+      { relPath: "src/lib/leak.test.ts", text: `const key = "${openRouter}";\n` },
+      { relPath: "src/lib/leak.ts", text: `const re = /${openRouter}/;\n` },
       {
         relPath: "src/lib/leak.ts",
-        absPath: "/tmp/leak.ts",
-        text: `export const key = "${deterministicOpenRouter}";\n`,
+        text: `const re = /sk-or-v1-\\x61${"b".repeat(63)}/;\n`,
       },
       {
-        relPath: "src/lib/leak.test.ts",
-        absPath: "/tmp/leak.test.ts",
-        text: `const anthropic = "${deterministicAnthropic}";\n`,
+        relPath: "src/lib/leak.ts",
+        text: `export const key = "sk-or-v1-\\x61${"b".repeat(63)}";\n`,
       },
       {
-        relPath: "src/services/deploy.ts",
-        absPath: "/tmp/deploy.ts",
-        text: `const accessKeyId = "${deterministicAws}";\n`,
+        relPath: "src/lib/leak.ts",
+        text: `export const key = "\\u0073\\u006b-or-v1-${"ab".repeat(32)}";\n`,
+      },
+      {
+        relPath: "src/lib/leak.ts",
+        text: `export const key = "sk-or-v1-" + "${"ab".repeat(32)}";\n`,
+      },
+      {
+        relPath: "src/lib/leak.ts",
+        text: 'export const key = `sk-or-v1-${"' + "ab".repeat(32) + '"}`;\n',
+      },
+      {
+        relPath: "src/components/Widget.tsx",
+        text: `export function Widget(total: number, count: number) {
+          const ratio = total / count;
+          const key = "sk-or-v1-\\x61${"b".repeat(63)}";
+          return <span title={key}>{ratio}</span>;
+        }\n`,
+      },
+      {
+        relPath: "src/lib/leak.ts",
+        text: `// ${openRouter}\nexport const ratio = width / height;\n`,
+      },
+      { relPath: "src/lib/leak.test.ts", text: `const anthropic = "${anthropic}";\n` },
+      { relPath: "src/services/deploy.ts", text: `const admin = "${anthropicAdmin}";\n` },
+      { relPath: "src/services/deploy.ts", text: `const accessKeyId = "AKIAIOSFODNN7EXAMPLE";\n` },
+      {
+        relPath: "src/lib/ssl.ts",
+        text: "const pem = `-----BEGIN PRIVATE KEY-----\\nMIIE\\n-----END PRIVATE KEY-----`;\n",
       },
       {
         relPath: "src/lib/ssl.ts",
-        absPath: "/tmp/ssl.ts",
-        text: `const pem = ${JSON.stringify(pem)};\n`,
+        text: "const pem = `-----BEGIN RSA PRIVATE KEY-----\\nMIIE\\n-----END RSA PRIVATE KEY-----`;\n",
       },
-    ]);
-    assert.equal(realisticHits.length, 4);
-    assert.ok(realisticHits.every((hit) => hit.kind === "critical_bugfix"));
+      { relPath: "src/lib/leak.ts", text: `export const key = "${management}";\n` },
+      { relPath: "src/lib/leak.ts", text: `export const key = "sk-or-v2-${"cd".repeat(32)}";\n` },
+      {
+        relPath: "src/components/Widget.tsx",
+        text: `export function Widget(total: number, count: number) {
+          const ratio = total / count;
+          return <span title="${openRouter}">{ratio}</span>;
+        }\n`,
+      },
+    ];
+    present.forEach((fixture, index) => {
+      const hits = scanCriticalSecrets([
+        { relPath: fixture.relPath, absPath: `/tmp/${fixture.relPath}`, text: fixture.text },
+      ]);
+      assert.equal(hits.length, 1, `positive ${index} ${fixture.relPath}`);
+      assert.equal(hits[0]?.kind, "critical_bugfix");
+      assert.equal(hits[0]?.classification, "REQUIRED_CLEANUP");
+      assert.equal(hits[0]?.bugfix, true);
+    });
+    assert.deepEqual(
+      scanCriticalSecrets([
+        {
+          relPath: "src/components/Widget.tsx",
+          absPath: "/tmp/Widget.tsx",
+          text: `export function Widget(total: number, count: number) {
+            const ratio = total / count;
+            const masked = String(ratio).replace(/sk-or-[A-Za-z0-9_-]+/g, "[redacted]");
+            return <span title={masked}>{ratio}</span>;
+          }\n`,
+        },
+      ]),
+      []
+    );
   });
 
-  it("does not flag the eight known 2026-10-19 weekly false positives on current main", () => {
+  it("does not flag the eight known weekly false positives in the main tree", () => {
     const files = walkSourceFiles(process.cwd());
-    const flagged = new Set(scanCriticalSecrets(files).map((hit) => hit.path));
+    const flagged = [...new Set(scanCriticalSecrets(files).map((hit) => hit.path))].sort();
     const knownFalsePositives = [
       "scripts/lib/gemini38AxisLiveCompare.ts",
       "src/app/api/admin/runtime-settings/route.test.ts",
@@ -203,8 +255,9 @@ MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF8PbnGy0AHB7M
       "src/lib/rpQualityPaidRunnerLiveDispatch.test.ts",
     ];
     for (const relPath of knownFalsePositives) {
-      assert.equal(flagged.has(relPath), false, relPath);
+      assert.equal(flagged.includes(relPath), false, relPath);
     }
+    assert.deepEqual(flagged, []);
   });
 
   it("marks critical findings as REQUIRED_CLEANUP / BUGFIX and never as auto-patch", () => {
@@ -255,6 +308,43 @@ describe("weekly read-only audit", () => {
     assert.ok(report.candidates.some((c) => c.symbol === "leftover"));
     assert.match(renderWeeklyMarkdown(report), /Weekly Code Health/);
     fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("fails the weekly audit for a published credential and not for a masking regex", () => {
+    const leaked = fs.mkdtempSync(path.join(os.tmpdir(), "code-health-secret-"));
+    const masked = fs.mkdtempSync(path.join(os.tmpdir(), "code-health-mask-"));
+    writeTree(leaked, {
+      "src/lib/leak.ts": `export const key = "${openRouterInferenceKey()}";\n`,
+    });
+    writeTree(masked, {
+      "src/lib/redact.ts":
+        'export const redact = (body: string) => body.replace(/sk-or-[A-Za-z0-9_-]+/g, "[redacted]");\n',
+    });
+    const leakedReport = runWeeklyCodeHealthAudit({
+      repoRoot: leaked,
+      mainSha: "secret-fixture",
+      now: new Date("2026-10-26T00:00:00.000Z"),
+    });
+    const maskedReport = runWeeklyCodeHealthAudit({
+      repoRoot: masked,
+      mainSha: "mask-fixture",
+      now: new Date("2026-10-26T00:00:00.000Z"),
+    });
+    const hit = leakedReport.candidates.find(
+      (candidate) => candidate.path === "src/lib/leak.ts" && candidate.kind === "critical_bugfix"
+    );
+    assert.ok(hit);
+    assert.equal(hit.classification, "REQUIRED_CLEANUP");
+    assert.equal(leakedReport.status, "FAILED");
+    assert.equal(leakedReport.productionMutated, false);
+    assert.equal(
+      maskedReport.candidates.some((candidate) => candidate.kind === "critical_bugfix"),
+      false
+    );
+    assert.notEqual(maskedReport.status, "FAILED");
+    assert.equal(maskedReport.productionMutated, false);
+    fs.rmSync(leaked, { recursive: true, force: true });
+    fs.rmSync(masked, { recursive: true, force: true });
   });
 
   it("computes quality trend as previous → current, not an absolute score", () => {
