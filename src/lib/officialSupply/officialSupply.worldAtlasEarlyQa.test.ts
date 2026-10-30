@@ -183,6 +183,69 @@ describe("world atlas early public-knowledge QA", () => {
     assert.deepEqual(tasks, ["world_bible", "world_bible"]);
   });
 
+  const G5_3N_PLAYER_CHOICE =
+    "확인이 이야기의 중심 RP 영역이다. 플레이어는 당사자 동의와 안전을 챙기면서도 제한된 시간과 예산 안에서 누구에게 먼저 손을 내밀지 선택한다.";
+  const OBJECTIVE_SHELTER =
+    "임시거처는 구청이 고시한 공공시설에서 운영하고, 침구와 식사는 신청 순서와 게시된 기준에 따라 배분한다.";
+
+  it("rejects a projected Core society player choice before Atlas and Portfolio", async () => {
+    const { transport, tasks } = queuedTransport([
+      { ...CORE, society: { "임시거처 연결": G5_3N_PLAYER_CHOICE } },
+      CLEAN_ATLAS,
+      PORTFOLIO,
+    ]);
+    await assert.rejects(
+      generateOfficialWorldBible({ transport, world: worldInput() }),
+      (error: unknown) => {
+        assert.ok(error instanceof OfficialSupplyGateError);
+        assert.equal(error.code, "official_world_projection_user_binding");
+        assert.equal(error.worldProjection?.stage, "world_projection");
+        assert.equal(error.stage, undefined);
+        const hit = error.worldProjection?.hits.find((item) => item.field === "society.임시거처 연결");
+        assert.match(hit?.excerpt ?? "", /플레이어는 당사자 동의와 안전을 챙기면서도/);
+        return true;
+      }
+    );
+    assert.deepEqual(tasks, ["world_bible"]);
+  });
+
+  it("continues when the shelter society field is an objective rule and keeps player entry on later fields", async () => {
+    const atlas = {
+      ...CLEAN_ATLAS,
+      userEntry: { allowedRoles: ["이웃", "동료"], note: G5_3N_PLAYER_CHOICE },
+    };
+    const portfolio = {
+      portfolio: [{ ...PORTFOLIO.portfolio[0]!, rpHook: G5_3N_PLAYER_CHOICE }],
+    };
+    const { transport, tasks } = queuedTransport([
+      { ...CORE, society: { "임시거처 연결": OBJECTIVE_SHELTER } },
+      atlas,
+      portfolio,
+    ]);
+    const generated = await generateOfficialWorldBible({ transport, world: worldInput() });
+    assert.equal(generated.bible.society["임시거처 연결"], OBJECTIVE_SHELTER);
+    assert.equal(generated.bible.userEntry.note, G5_3N_PLAYER_CHOICE);
+    assert.equal(generated.bible.portfolio[0]?.rpHook, G5_3N_PLAYER_CHOICE);
+    assert.deepEqual(tasks, ["world_bible", "world_bible", "world_bible"]);
+  });
+
+  it("does not stop Core for a player sentence that a shrink can drop", async () => {
+    const { transport, tasks } = queuedTransport([
+      {
+        ...CORE,
+        society: { 일상: "규칙" },
+        powerSystem: { ...CORE.powerSystem, ranks: G5_3N_PLAYER_CHOICE },
+        factions: [{ ...CORE.factions[0]!, leadership: G5_3N_PLAYER_CHOICE }],
+      },
+      CLEAN_ATLAS,
+      PORTFOLIO,
+    ]);
+    const generated = await generateOfficialWorldBible({ transport, world: worldInput() });
+    assert.equal(generated.bible.powerSystem.ranks, G5_3N_PLAYER_CHOICE);
+    assert.equal(generated.bible.factions[0]?.leadership, G5_3N_PLAYER_CHOICE);
+    assert.deepEqual(tasks, ["world_bible", "world_bible", "world_bible"]);
+  });
+
   it("continues to Portfolio when Atlas public lorebook is clean, including authorOnly hidden wording", async () => {
     const { transport, tasks } = queuedTransport([CORE, CLEAN_ATLAS, PORTFOLIO]);
     const generated = await generateOfficialWorldBible({ transport, world: worldInput() });

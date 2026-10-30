@@ -628,6 +628,12 @@ describe("genre-neutral planning order (G5-3K)", () => {
     const modern = assembleAdminModern();
     assert.match(modern.worldCore, /기획 순서\(인물 경험 우선/);
     assert.match(modern.worldCore, /PRIMARY 한 줄은 선호 참고다/);
+    const societyLine = modern.worldCore.split("\n").find((line) => line.startsWith("- society:"));
+    assert.equal(
+      societyLine,
+      "- society: 이 사건에 실제로 작용하는 사회·생활의 규칙·관행·환경·제약 1개 이상. 키=영역명·값=세계 안의 객관적 설명. 플레이어의 행동·결정·역할은 쓰지 않는다(중첩 객체·domains 배열 금지)"
+    );
+    assert.equal(modern.worldCore.split("\n").filter((line) => line.startsWith("- society:")).length, 1);
     assert.match(modern.worldCore, /직업·사건의 정본으로 쓰지 않는다/);
     assert.ok(!modern.worldCore.includes("누수 금지"));
     assert.ok(!modern.worldCore.includes("테이프 금지"));

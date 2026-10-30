@@ -149,6 +149,8 @@ describe("worldScale QA — scene vs full", () => {
     });
     assert.match(dailyCore, /factions 1~2개/);
     assert.match(dailyCore, /이 장면에서 인물이 실제로 할 수 있는 행동/);
+    assert.match(dailyCore, /사회·생활의 규칙·관행·환경·제약 1개 이상/);
+    assert.doesNotMatch(dailyCore, /이 사건에 실제로 쓰이는 RP 영역/);
 
     const rofanCore = buildWorldCoreUser({
       genre: OFFICIAL_ROFAN_GENRE,
