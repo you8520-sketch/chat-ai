@@ -20,6 +20,11 @@ export type RelationshipSceneFallbackInput = {
   memoryEnabled: boolean;
   /** The first shared initial relationship section parsed successfully. */
   baseUsable: boolean;
+  /**
+   * The main RP model already returned a valid relationship tail. The canonical
+   * writer prioritizes that delta, so a scene call would be wasted cost.
+   */
+  mainModelTailParsed: boolean;
   baseDelta: RelationshipMetaDelta | null;
   assistantProse: string;
   userMessage: string;
@@ -88,7 +93,12 @@ export async function augmentRelationshipDeltaWithScene(
 ): Promise<RelationshipMetaDelta> {
   const base = input.baseDelta ?? {};
   if (!input.memoryEnabled || !input.baseUsable) return base;
+  if (input.mainModelTailParsed) return base;
   if ((base.promisesAdd?.length ?? 0) > 0) return base;
+  // A turn that already cancels/withdraws a promise is the highest-risk turn
+  // for re-registering the same promise under different wording. Skip the
+  // additive recovery conservatively; the first pass remains canonical.
+  if ((base.promisesRemove?.length ?? 0) > 0) return base;
 
   const locate = deps.locate ?? locateRelationshipScenes;
   const windows = locate(input.assistantProse);

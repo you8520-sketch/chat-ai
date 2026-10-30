@@ -46,6 +46,7 @@ function baseInput(overrides: Record<string, unknown> = {}) {
   return {
     memoryEnabled: true,
     baseUsable: true,
+    mainModelTailParsed: false,
     baseDelta: {
       items: ["제이: 은빛 반지"],
       itemsRemove: [],
@@ -109,6 +110,105 @@ describe("augmentRelationshipDeltaWithScene", () => {
     );
     assert.equal(calls, 0);
     assert.deepEqual(out.promisesAdd, [{ text: "이미 저장된 약속" }]);
+  });
+
+  it("skips when the main RP tail already owns the relationship delta", async () => {
+    let calls = 0;
+    const out = await augmentRelationshipDeltaWithScene(
+      baseInput({ mainModelTailParsed: true }),
+      {
+        run: async () => {
+          calls += 1;
+          return runResult();
+        },
+      }
+    );
+    assert.equal(calls, 0);
+    assert.deepEqual(out.items, ["제이: 은빛 반지"]);
+  });
+
+  it("preserves a first-pass new promise on a turn that also cancels an old one", async () => {
+    let calls = 0;
+    const out = await augmentRelationshipDeltaWithScene(
+      baseInput({
+        baseDelta: {
+          items: [],
+          itemsRemove: [],
+          promisesAdd: [{ text: "새 약속" }],
+          promisesRemove: ["옛 약속"],
+        },
+      }),
+      {
+        run: async () => {
+          calls += 1;
+          return runResult();
+        },
+      }
+    );
+    assert.equal(calls, 0);
+    assert.deepEqual(out.promisesAdd, [{ text: "새 약속" }]);
+    assert.deepEqual(out.promisesRemove, ["옛 약속"]);
+  });
+
+  it("skips conservatively when the first pass cancels a promise", async () => {
+    let calls = 0;
+    const out = await augmentRelationshipDeltaWithScene(
+      baseInput({
+        baseDelta: {
+          items: [],
+          itemsRemove: [],
+          promisesAdd: [],
+          promisesRemove: ["허가 없는 절단은 하지 않는다"],
+        },
+      }),
+      {
+        run: async () => {
+          calls += 1;
+          return runResult();
+        },
+      }
+    );
+    assert.equal(calls, 0);
+    assert.deepEqual(out.promisesAdd, []);
+    assert.deepEqual(out.promisesRemove, ["허가 없는 절단은 하지 않는다"]);
+  });
+
+  it("does not recover a different new promise on a cancellation turn", async () => {
+    // Documented conservative trade-off: the first pass stays canonical, so a
+    // new promise in the same turn is not recovered by the scene call.
+    let calls = 0;
+    const out = await augmentRelationshipDeltaWithScene(
+      baseInput({
+        baseDelta: {
+          items: [],
+          itemsRemove: [],
+          promisesAdd: [],
+          promisesRemove: ["허가 없는 절단은 하지 않는다"],
+        },
+      }),
+      {
+        run: async () => {
+          calls += 1;
+          return runResult({
+            parsed: {
+              ...runResult().parsed!,
+              relationship: {
+                present: true,
+                valid: true,
+                delta: {
+                  items: [],
+                  itemsRemove: [],
+                  promisesAdd: [{ text: "내일 다시 올게" }],
+                  promisesRemove: [],
+                },
+              },
+            },
+          });
+        },
+      }
+    );
+    assert.equal(calls, 0);
+    assert.deepEqual(out.promisesAdd, []);
   });
 
   it("skips when the prose has no explicit commitment cue", async () => {
@@ -197,7 +297,7 @@ describe("augmentRelationshipDeltaWithScene", () => {
           items: ["제이: 은빛 반지"],
           itemsRemove: ["오스카: 열쇠"],
           promisesAdd: [],
-          promisesRemove: ["취소된 약속"],
+          promisesRemove: [],
         },
       }),
       {
@@ -221,7 +321,7 @@ describe("augmentRelationshipDeltaWithScene", () => {
     );
     assert.deepEqual(out.items, ["제이: 은빛 반지"]);
     assert.deepEqual(out.itemsRemove, ["오스카: 열쇠"]);
-    assert.deepEqual(out.promisesRemove, ["취소된 약속"]);
+    assert.deepEqual(out.promisesRemove, []);
     assert.deepEqual(out.promisesAdd, [{ text: "새 약속" }]);
   });
 
