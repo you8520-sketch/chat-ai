@@ -22,6 +22,30 @@ function stringArray(value: unknown): string[] {
     .filter(Boolean);
 }
 
+/** Scope words that may appear in a deadline without being in the promise text. */
+const PROMISE_DEADLINE_SCOPE_WORDS = new Set([
+  "이번",
+  "처치",
+  "손목",
+  "까지",
+  "오늘",
+  "내일",
+  "기한",
+  "후",
+  "전",
+  "동안",
+  "중",
+  "날",
+  "해당",
+  "현재",
+  "끝날",
+]);
+
+function deadlineIntroducesForeignActor(text: string, deadline: string): boolean {
+  const tokens = deadline.match(/[가-힣]{2,}/g) ?? [];
+  return tokens.some((token) => !PROMISE_DEADLINE_SCOPE_WORDS.has(token) && !text.includes(token));
+}
+
 function parsePromisesAdd(value: unknown): MemoryPromise[] | null {
   if (!Array.isArray(value)) return null;
   const out: MemoryPromise[] = [];
@@ -30,9 +54,13 @@ function parsePromisesAdd(value: unknown): MemoryPromise[] | null {
     if (!record || typeof record.text !== "string") return null;
     const text = record.text.trim();
     if (!text) continue;
-    const deadline =
+    const rawDeadline =
       typeof record.deadline === "string" && record.deadline.trim()
         ? record.deadline.trim()
+        : "";
+    const deadline =
+      rawDeadline && !deadlineIntroducesForeignActor(text, rawDeadline)
+        ? rawDeadline
         : undefined;
     out.push({ text, ...(deadline ? { deadline } : {}) } as MemoryPromise);
   }

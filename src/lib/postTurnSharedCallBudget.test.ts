@@ -483,6 +483,35 @@ describe("relationship section parse evidence", () => {
     assert.deepEqual(section.delta.promisesAdd, [{ text: "다음에 다시 만나기" }]);
   });
 
+  it("keeps a treatment-scope deadline and drops a foreign person deadline", () => {
+    const kept = parseRel({
+      items: [],
+      itemsRemove: [],
+      promisesAdd: [
+        { text: "허가 없는 절단은 안 할게요, 약속하죠.", deadline: "이번 손목 처치" },
+      ],
+      promisesRemove: [],
+    });
+    assert.deepEqual(kept.delta.promisesAdd, [
+      { text: "허가 없는 절단은 안 할게요, 약속하죠.", deadline: "이번 손목 처치" },
+    ]);
+
+    const stripped = parseRel({
+      items: [],
+      itemsRemove: [],
+      promisesAdd: [
+        {
+          text: "I'll make him as good as new. No unauthorized amputations.",
+          deadline: "오스카의 처치가 끝날 때까지",
+        },
+      ],
+      promisesRemove: [],
+    });
+    assert.deepEqual(stripped.delta.promisesAdd, [
+      { text: "I'll make him as good as new. No unauthorized amputations." },
+    ]);
+  });
+
   it("section failure does not invalidate status/suggestions sections", () => {
     const parsed = parsePostTurnSharedInitialResponse(
       JSON.stringify({
