@@ -68,7 +68,7 @@ function marketFor(plan: OfficialAuthoringPlan): WorldMarketInput {
   return {
     targetLocale: POLICY.targetLocale,
     marketPriority: POLICY.marketPriority,
-    signalLines: formatMarketSignalLines(selection),
+    signalLines: formatMarketSignalLines(selection, plan),
     namingProfile: plan.namingProfile,
     marketRoleMix: POLICY.marketRoleMix,
     maxPrimaryTropeRepeat: POLICY.maxPrimaryTropeRepeat,
@@ -577,6 +577,7 @@ describe("genre-neutral planning order (G5-3K)", () => {
       castIntent: recommendOfficialCastIntent("현대/일상"),
       authoring: plan,
     };
+    const market = world.market;
     return {
       plan,
       worldSystem: buildWorldBibleSystem(plan),
@@ -590,8 +591,19 @@ describe("genre-neutral planning order (G5-3K)", () => {
         adultCandidates: 0,
         genderMix: "여성 1명",
         slotGenders: ["female"],
-        market: world.market,
+        market,
         castIntent: world.castIntent,
+        authoring: plan,
+      }),
+      replacement: buildPortfolioReplacementUser({
+        worldName: "W",
+        centralPremise: "C",
+        factionNames: ["이웃"],
+        locationNames: ["골목"],
+        market,
+        castIntent: world.castIntent ?? "",
+        keptSiblings: [],
+        slots: [{ slot: 1, gender: "female", adultCandidate: false, direction: "한 명만 다시 계획한다." }],
         authoring: plan,
       }),
     };
@@ -625,7 +637,23 @@ describe("genre-neutral planning order (G5-3K)", () => {
     assert.ok(!rofan.worldCore.includes("기획 순서(인물 경험 우선"));
     assert.match(rofan.worldPortfolio, /상품 기획 순서\(관계 우선\)/);
     assert.match(rofan.worldPortfolio, /먼저 marketFit을 채운 뒤 나머지 필드를 marketFit에 맞춰 쓴다/);
+    assert.match(rofan.worldCore, /PRIMARY\(대상 시장 신호, 우선 사용\)/);
+    assert.match(rofan.worldPortfolio, /PRIMARY\(대상 시장 신호, 우선 사용\)/);
     assert.equal(createHash("sha256").update(rofan.worldCore).digest("hex"), G5_1D_ROFAN_WORLD_CORE_SHA256);
+  });
+
+  it("modern World Core, Portfolio and Replacement never say PRIMARY 우선 사용", () => {
+    const modern = assembleAdminModern();
+    const forbidden = "PRIMARY(대상 시장 신호, 우선 사용)";
+    for (const [key, text] of Object.entries({
+      worldCore: modern.worldCore,
+      worldPortfolio: modern.worldPortfolio,
+      replacement: modern.replacement,
+    })) {
+      assert.ok(!text.includes(forbidden), `${key} still has ${forbidden}`);
+      assert.match(text, /PRIMARY\(대상 시장 신호, 참고\)/);
+      assert.match(text, /\[global-08\]/);
+    }
   });
 
   it("modern Portfolio records the chosen experience in marketFit instead of cloning PRIMARY", () => {

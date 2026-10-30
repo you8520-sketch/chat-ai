@@ -189,8 +189,20 @@ export function selectMarketSignals(
 const NO_GENRE_SIGNAL_LINE =
   "- (이 장르에 사용 가능한 originality-eligible 시장 신호가 없음. 장르·문체·캐스트 의도로 기획하고, SUPPORTING은 충돌하면 버린다.)";
 
+const PRIMARY_PRIORITY_HEADER = "PRIMARY(대상 시장 신호, 우선 사용):";
+const PRIMARY_REFERENCE_HEADER = "PRIMARY(대상 시장 신호, 참고):";
+
+/**
+ * Structural plan key only. This file must not import `genreProfile`
+ * (`resolveNamingProfile` cycle). `OfficialAuthoringPlan` is assignable.
+ */
+export type MarketSignalLinePlan = { profile: { key: string } };
+
 /** Trope-level prompt lines (signalId-tagged so briefs can cite them). */
-export function formatMarketSignalLines(selection: MarketSignalSelection): string[] {
+export function formatMarketSignalLines(
+  selection: MarketSignalSelection,
+  plan?: MarketSignalLinePlan
+): string[] {
   const line = (s: MarketSignalDigest) =>
     [
       `[${s.signalId}]`,
@@ -203,8 +215,10 @@ export function formatMarketSignalLines(selection: MarketSignalSelection): strin
     ]
       .filter(Boolean)
       .join(" · ");
+  const primaryHeader =
+    plan?.profile.key === "genre_neutral" ? PRIMARY_REFERENCE_HEADER : PRIMARY_PRIORITY_HEADER;
   return [
-    "PRIMARY(대상 시장 신호, 우선 사용):",
+    primaryHeader,
     ...(selection.primary.length > 0 ? selection.primary.map((s) => `- ${line(s)}`) : [NO_GENRE_SIGNAL_LINE]),
     selection.supporting.length ? "SUPPORTING(보조 참고, 대상 시장 신호와 충돌하면 버린다):" : "",
     ...selection.supporting.map((s) => `- ${line(s)}`),

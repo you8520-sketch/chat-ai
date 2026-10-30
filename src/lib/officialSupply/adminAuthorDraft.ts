@@ -233,7 +233,7 @@ function marketFor(snapshot: ResearchSnapshot, plan: OfficialAuthoringPlan): Wor
   return {
     targetLocale: MARKET_POLICY.targetLocale,
     marketPriority: MARKET_POLICY.marketPriority,
-    signalLines: formatMarketSignalLines(selection),
+    signalLines: formatMarketSignalLines(selection, plan),
     namingProfile: plan.namingProfile,
     marketRoleMix: MARKET_POLICY.marketRoleMix,
     maxPrimaryTropeRepeat: MARKET_POLICY.maxPrimaryTropeRepeat,
