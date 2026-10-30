@@ -43,6 +43,11 @@ export type UsageFetcher = typeof fetch;
 
 const DEFAULT_LIMIT = 100;
 export const CI_USAGE_MAX_LIMIT = 100;
+/** One window slice fails closed at this page count. It is not a complete history. */
+export const CI_USAGE_PAGE_CAP = 50;
+/** All slices of one covering read, including slices discarded because they still had a cursor. */
+export const CI_USAGE_COVER_PAGE_BUDGET = 400;
+export const CI_USAGE_COVER_BUDGET_MS = 120_000;
 
 function clampLimit(limit?: number): number {
   const n = Math.floor(Number(limit) || DEFAULT_LIMIT);
@@ -108,11 +113,16 @@ function extractItems(payload: unknown): unknown[] | null {
   return null;
 }
 
-function extractNextCursor(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
+/** null cursor ends the slice. A present but unusable cursor is malformed, not the last page. */
+function extractNextCursor(payload: unknown): { cursor: string | null } | null {
+  if (!payload || typeof payload !== "object") return { cursor: null };
   const obj = payload as Record<string, unknown>;
   const cursor = obj.next_cursor ?? obj.nextCursor;
-  return typeof cursor === "string" && cursor.trim() ? cursor.trim() : null;
+  if (cursor == null) return { cursor: null };
+  if (typeof cursor !== "string") return null;
+  const trimmed = cursor.trim();
+  if (!trimmed) return null;
+  return { cursor: trimmed };
 }
 
 function parseRequestsPage(
@@ -141,7 +151,9 @@ function parseRequestsPage(
       apiKeyId: readApiKeyId(item),
     });
   }
-  return { requests, nextCursor: extractNextCursor(payload) };
+  const nextCursor = extractNextCursor(payload);
+  if (!nextCursor) return null;
+  return { requests, nextCursor: nextCursor.cursor };
 }
 
 function retryAfterMsFromHeader(value: string | null): number | undefined {
@@ -250,23 +262,36 @@ export async function fetchUsageRequestsPage(opts: {
   return { ok: true, value: parsed };
 }
 
-/** All pages in [startAt, endAt). Cursor is never interpreted, only forwarded.
- * A safety cap that is hit while a cursor remains is NOT a complete history:
- * the caller gets a non-success "incomplete" result so truncated pages are
- * never treated as full provider history. */
-export async function fetchAllUsageRequests(opts: {
+type UsageWindowOpts = {
   startAt: string;
   endAt: string;
   limit?: number;
-  maxPages?: number;
   fetchImpl?: UsageFetcher;
   apiKey?: string;
-}): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; pages: number }>> {
-  const maxPages = Math.max(1, Math.floor(opts.maxPages ?? 50));
+  now?: () => number;
+};
+
+/** All pages in one half-open window. Cursor is never interpreted, only forwarded.
+ * A safety cap that is hit while a cursor remains is NOT a complete history. */
+async function walkUsageRequestPages(
+  opts: UsageWindowOpts & { maxPages: number }
+): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; pages: number }>> {
+  const maxPages = Math.max(1, Math.floor(opts.maxPages));
   const requests: CheaperInferenceUsageRequest[] = [];
+  const seenCursors = new Set<string>();
   let cursor: string | null = null;
   let pages = 0;
   do {
+    if (cursor) {
+      if (seenCursors.has(cursor)) {
+        return {
+          ok: false,
+          reason: "schema",
+          message: "usage requests cursor repeated",
+        };
+      }
+      seenCursors.add(cursor);
+    }
     const page = await fetchUsageRequestsPage({
       startAt: opts.startAt,
       endAt: opts.endAt,
@@ -288,6 +313,102 @@ export async function fetchAllUsageRequests(opts: {
     };
   }
   return { ok: true, value: { requests, pages } };
+}
+
+function addUniqueUsageRequests(
+  seenIds: Set<string>,
+  dest: CheaperInferenceUsageRequest[],
+  rows: readonly CheaperInferenceUsageRequest[]
+): void {
+  for (const row of rows) {
+    if (seenIds.has(row.requestId)) continue;
+    seenIds.add(row.requestId);
+    dest.push(row);
+  }
+}
+
+type UsageCoverState = {
+  pages: number;
+  startedMs: number;
+  requests: CheaperInferenceUsageRequest[];
+  seenIds: Set<string>;
+};
+
+function usageWindowMidpoint(startAt: string, endAt: string): string | null {
+  const startMs = Date.parse(startAt);
+  const endMs = Date.parse(endAt);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs - startMs < 2) return null;
+  const midMs = startMs + Math.floor((endMs - startMs) / 2);
+  if (midMs <= startMs || midMs >= endMs) return null;
+  return new Date(midMs).toISOString();
+}
+
+/** Read [startAt, endAt) by splitting only slices that still have a cursor after the page cap. */
+async function coverUsageRequestWindow(
+  opts: UsageWindowOpts,
+  state: UsageCoverState,
+  startAt: string,
+  endAt: string
+): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; pages: number }>> {
+  const now = opts.now ?? Date.now;
+  if (
+    state.pages >= CI_USAGE_COVER_PAGE_BUDGET ||
+    now() - state.startedMs > CI_USAGE_COVER_BUDGET_MS
+  ) {
+    return {
+      ok: false,
+      reason: "incomplete",
+      message: "usage requests window coverage exceeded the request or time budget",
+    };
+  }
+  const sliceCap = Math.min(CI_USAGE_PAGE_CAP, CI_USAGE_COVER_PAGE_BUDGET - state.pages);
+  const walked = await walkUsageRequestPages({
+    ...opts,
+    startAt,
+    endAt,
+    maxPages: sliceCap,
+  });
+  if (!walked.ok && walked.reason !== "incomplete") return walked;
+  if (walked.ok) {
+    state.pages += walked.value.pages;
+    addUniqueUsageRequests(state.seenIds, state.requests, walked.value.requests);
+    return { ok: true, value: { requests: state.requests, pages: state.pages } };
+  }
+  state.pages += sliceCap;
+  const mid = usageWindowMidpoint(startAt, endAt);
+  if (!mid) {
+    return {
+      ok: false,
+      reason: "incomplete",
+      message: "usage requests pagination cannot split the remaining window",
+    };
+  }
+  const left = await coverUsageRequestWindow(opts, state, startAt, mid);
+  if (!left.ok) return left;
+  return coverUsageRequestWindow(opts, state, mid, endAt);
+}
+
+/** All pages in [startAt, endAt).
+ * An explicit maxPages keeps the single-slice cap and does not split the window.
+ * The monthly caller omits maxPages: a slice that still has a cursor is bisected
+ * until every half-open piece is read, or the whole read fails closed.
+ * incomplete is never returned as ok. */
+export async function fetchAllUsageRequests(opts: UsageWindowOpts & {
+  maxPages?: number;
+}): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; pages: number }>> {
+  if (opts.maxPages != null) {
+    return walkUsageRequestPages({ ...opts, maxPages: opts.maxPages });
+  }
+  const now = opts.now ?? Date.now;
+  const state: UsageCoverState = {
+    pages: 0,
+    startedMs: now(),
+    requests: [],
+    seenIds: new Set(),
+  };
+  const covered = await coverUsageRequestWindow(opts, state, opts.startAt, opts.endAt);
+  if (!covered.ok) return covered;
+  return { ok: true, value: { requests: state.requests, pages: state.pages } };
 }
 
 export const CI_USAGE_REQUEST_LOOKUP_MAX_GETS = 3;

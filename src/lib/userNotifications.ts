@@ -516,15 +516,69 @@ export function notifyAdminsSupplyDraftReady(
   return notified;
 }
 
+const FINANCE_ANOMALY_EPISODE_KEY = "admin_finance_anomaly_episode";
+
+export type FinanceAnomalyIncident = {
+  code: string;
+  severity: "critical" | "warning";
+  sourceRef: string;
+};
+
+type FinanceAnomalyEpisode = {
+  open: boolean;
+  fingerprint: string;
+  refId: number;
+};
+
+function financeAnomalyFingerprint(incidents: readonly FinanceAnomalyIncident[]): string {
+  return incidents
+    .map((incident) => `${incident.code}|${incident.severity}|${incident.sourceRef}`)
+    .sort()
+    .join("\n");
+}
+
+function ensureFinanceAnomalyEpisodeStore(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+}
+
+function readFinanceAnomalyEpisode(db: Database.Database): FinanceAnomalyEpisode {
+  const row = db
+    .prepare("SELECT value FROM app_meta WHERE key=?")
+    .get(FINANCE_ANOMALY_EPISODE_KEY) as { value: string } | undefined;
+  if (!row) return { open: false, fingerprint: "", refId: 0 };
+  try {
+    const parsed = JSON.parse(row.value) as Partial<FinanceAnomalyEpisode>;
+    const refId = Number(parsed.refId);
+    if (!Number.isSafeInteger(refId) || refId < 0) return { open: false, fingerprint: "", refId: 0 };
+    return {
+      open: parsed.open === true,
+      fingerprint: typeof parsed.fingerprint === "string" ? parsed.fingerprint : "",
+      refId,
+    };
+  } catch {
+    return { open: false, fingerprint: "", refId: 0 };
+  }
+}
+
+function writeFinanceAnomalyEpisode(db: Database.Database, episode: FinanceAnomalyEpisode): void {
+  db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)").run(
+    FINANCE_ANOMALY_EPISODE_KEY,
+    JSON.stringify(episode)
+  );
+}
+
 /**
- * 공개 심사를 통과한 독립 공급처 후보를 관리자에게 한 번 알립니다.
- * 공급처 id의 안정적인 ref id가 dedupe key입니다. Draft PR 알림 owner와 같은
- * in-app + web push 경로를 쓰고, 별도 push 시스템을 만들지 않습니다.
- */
-/**
- * Notify administrators once per canonical finance_daily slot when deterministic
- * billing/cost anomalies are present. The daily slot key is the dedupe owner;
- * repeated boot/runtime/manual recovery for the same slot cannot fan out pushes.
+ * Notify administrators when the open finance-anomaly incident changes.
+ * Identity is code + severity + sourceRef. The calendar day and report time
+ * are not an incident. The same unresolved incident is not sent again; a new
+ * code, a severity increase, new evidence in sourceRef, or a relapse after
+ * the incident closed is sent. Prior notification rows are left in place.
+ * Ops and finance screens keep reading the anomaly report, not this outbox.
  */
 export function notifyAdminsFinanceAnomaly(
   db: Database.Database,
@@ -533,34 +587,45 @@ export function notifyAdminsFinanceAnomaly(
     criticalCount: number;
     warningCount: number;
     anomalyTitles: readonly string[];
+    incidents: readonly FinanceAnomalyIncident[];
   }
 ): number[] {
-  if (opts.criticalCount <= 0 && opts.warningCount <= 0) return [];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(opts.slotKey)) return [];
 
-  const refId = Number(opts.slotKey.replace(/-/g, ""));
-  if (!Number.isSafeInteger(refId) || refId <= 0) return [];
+  const fingerprint = financeAnomalyFingerprint(opts.incidents);
+  const quiescent = opts.criticalCount <= 0 && opts.warningCount <= 0;
 
-  const admins = listAdminNotificationRecipients(db);
-  const notified: number[] = [];
-  const title =
-    opts.criticalCount > 0
-      ? "재무/과금 Critical anomaly"
-      : "재무/과금 anomaly 검토";
-  const top = opts.anomalyTitles.slice(0, 3).join(" · ");
-  const body =
-    `${opts.slotKey} finance_daily · critical ${opts.criticalCount} · warning ${opts.warningCount}` +
-    (top ? ` · ${top}` : "");
+  return db.transaction(() => {
+    ensureFinanceAnomalyEpisodeStore(db);
+    const episode = readFinanceAnomalyEpisode(db);
+    if (quiescent) {
+      if (episode.open) {
+        writeFinanceAnomalyEpisode(db, { open: false, fingerprint: "", refId: episode.refId });
+      }
+      return [];
+    }
 
-  for (const admin of admins) {
-    const inserted = db.transaction(() => {
+    const sameEpisode =
+      episode.open && episode.fingerprint === fingerprint && episode.refId > 0;
+    const refId = sameEpisode ? episode.refId : episode.refId + 1;
+    if (!Number.isSafeInteger(refId) || refId <= 0) return [];
+
+    const admins = listAdminNotificationRecipients(db);
+    const notified: number[] = [];
+    const title =
+      opts.criticalCount > 0 ? "재무/과금 Critical anomaly" : "재무/과금 anomaly 검토";
+    const top = opts.anomalyTitles.slice(0, 3).join(" · ");
+    const body =
+      `${opts.slotKey} finance_daily · critical ${opts.criticalCount} · warning ${opts.warningCount}` +
+      (top ? ` · ${top}` : "");
+
+    for (const admin of admins) {
       const exists = db
         .prepare(
           "SELECT 1 AS ok FROM user_notifications WHERE user_id=? AND type='admin_finance_anomaly' AND ref_id=? LIMIT 1"
         )
         .get(admin.id, refId) as { ok: number } | undefined;
-      if (exists) return false;
-
+      if (exists) continue;
       insertNotification(db, {
         userId: admin.id,
         type: "admin_finance_anomaly",
@@ -570,18 +635,23 @@ export function notifyAdminsFinanceAnomaly(
         body,
         push: {
           url: "/admin/ops",
-          tag: `admin-finance-anomaly:${opts.slotKey}`,
+          tag: `admin-finance-anomaly:${refId}`,
           kind: "notice",
         },
       });
-      return true;
-    }).immediate();
+      notified.push(admin.id);
+    }
 
-    if (inserted) notified.push(admin.id);
-  }
-
-  return notified;
+    writeFinanceAnomalyEpisode(db, { open: true, fingerprint, refId });
+    return notified;
+  }).immediate();
 }
+
+/**
+ * 공개 심사를 통과한 독립 공급처 후보를 관리자에게 한 번 알립니다.
+ * 공급처 id의 안정적인 ref id가 dedupe key입니다. Draft PR 알림 owner와 같은
+ * in-app + web push 경로를 쓰고, 별도 push 시스템을 만들지 않습니다.
+ */
 
 export function notifyAdminsSupplyCandidateAttention(
   db: Database.Database,

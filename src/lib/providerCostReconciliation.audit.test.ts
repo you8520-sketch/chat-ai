@@ -12,7 +12,11 @@ import {
   reconcileCheaperInferenceUsage,
   type ProviderReconciliationResult,
 } from "@/lib/providerCostReconciliation";
-import type { CheaperInferenceUsageRequest } from "@/lib/cheaperInferenceUsage";
+import {
+  CI_USAGE_PAGE_CAP,
+  fetchAllUsageRequests,
+  type CheaperInferenceUsageRequest,
+} from "@/lib/cheaperInferenceUsage";
 
 function db(): Database.Database {
   const d = new Database(":memory:");
@@ -434,6 +438,99 @@ describe("provider cost reconciliation audit #1337", () => {
       assert.equal(after.totalApiCostKrw, before.totalApiCostKrw);
       assert.equal(after.aiCost.totalActualKrw, before.aiCost.totalActualKrw);
     } finally {
+      d.close();
+    }
+  });
+
+  it("confirms a forward audit only after a read past the page cap, and keeps the prior audit when a later page fails", async () => {
+    const d = db();
+    const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+    try {
+      const startMs = Date.parse("2026-10-01T00:00:00.000Z");
+      const endMs = Date.parse("2026-11-01T00:00:00.000Z");
+      const total = CI_USAGE_PAGE_CAP * 100 + 100;
+      const history = (async (url: string) => {
+        const parsed = new URL(url);
+        const windowStart = Date.parse(parsed.searchParams.get("start_at") ?? "");
+        const windowEnd = Date.parse(parsed.searchParams.get("end_at") ?? "");
+        const limit = Number(parsed.searchParams.get("limit") ?? "100");
+        const cursor = Number(parsed.searchParams.get("cursor") ?? "0");
+        const data: Array<Record<string, unknown>> = [];
+        let next = cursor;
+        for (let i = cursor; i < total && data.length < limit; i += 1) {
+          const at = startMs + Math.floor((i * (endMs - startMs)) / total);
+          if (at < windowStart) continue;
+          if (at >= windowEnd) break;
+          data.push({
+            request_id: `req-${i}`,
+            status: "pending",
+            billed_cost_usd: "0",
+            created_at: new Date(at).toISOString(),
+          });
+          next = i + 1;
+        }
+        const moreAt = startMs + Math.floor((next * (endMs - startMs)) / total);
+        const more = next < total && moreAt < windowEnd;
+        return new Response(
+          JSON.stringify({ data, next_cursor: more ? String(next) : null }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }) as typeof fetch;
+
+      const ok = await reconcileCheaperInferenceUsage({
+        windowStart: "2026-10-01 00:00:00",
+        windowEnd: "2026-11-01 00:00:00",
+        db: d,
+        deps: {
+          persistInTests: true,
+          observedSinceEnv: "2026-10-01T00:00:00.000Z",
+          fetchRequests: (opts) => fetchAllUsageRequests({ ...opts, fetchImpl: history }),
+          fetchDaily: async () => ({ ok: true, value: { settledMicroUsd: 0 } }),
+        },
+      });
+      assert.equal(ok.status, "matched");
+      assert.equal(ok.providerRequests, total);
+      assert.ok(ok.pages > CI_USAGE_PAGE_CAP);
+      assert.equal(ok.settledMicroUsd, 0);
+      assert.equal(ok.forwardAudit?.fetchStatus, "ok");
+      assert.equal(ok.forwardAudit?.observedSince, "2026-10-01T00:00:00.000Z");
+
+      let calls = 0;
+      const failed = await reconcileCheaperInferenceUsage({
+        windowStart: "2026-10-01 00:00:00",
+        windowEnd: "2026-11-01 00:00:00",
+        db: d,
+        deps: {
+          persistInTests: true,
+          observedSinceEnv: "2026-10-01T00:00:00.000Z",
+          fetchRequests: (opts) =>
+            fetchAllUsageRequests({
+              ...opts,
+              fetchImpl: (async () => {
+                calls += 1;
+                if (calls > 1) return new Response("unavailable", { status: 500 });
+                return new Response(
+                  JSON.stringify({
+                    data: [{ request_id: "partial", status: "pending", billed_cost_usd: "0" }],
+                    next_cursor: "more",
+                  }),
+                  { status: 200, headers: { "content-type": "application/json" } }
+                );
+              }) as typeof fetch,
+            }),
+          fetchDaily: async () => ({ ok: true, value: { settledMicroUsd: 0 } }),
+        },
+      });
+      assert.equal(failed.status, "provider_unavailable");
+      assert.equal(failed.settledMicroUsd, ok.settledMicroUsd);
+      assert.equal(failed.localReconciledMicroUsd, ok.localReconciledMicroUsd);
+      assert.equal(failed.forwardAudit?.fetchStatus, "http");
+      assert.equal(failed.forwardAudit?.observedSince, ok.forwardAudit?.observedSince);
+      assert.deepEqual(failed.forwardAudit?.cases, ["fetch_failure"]);
+    } finally {
+      if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
       d.close();
     }
   });

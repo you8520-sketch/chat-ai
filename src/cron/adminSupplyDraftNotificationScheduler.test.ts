@@ -249,6 +249,18 @@ describe("admin supply Draft notification watcher", () => {
       "INSERT INTO web_push_subscriptions (user_id,endpoint,p256dh,auth) VALUES (1,'https://push.example/finance','p256dh','auth')"
     ).run();
 
+    const incidents = [
+      {
+        code: "PROVIDER_RECONCILIATION_MISMATCH",
+        severity: "critical" as const,
+        sourceRef: "provider_reconciliation:2026-10-01 00:00:00..2026-11-01 00:00:00",
+      },
+      {
+        code: "ACTUAL_MARGIN_BELOW_FLOOR",
+        severity: "warning" as const,
+        sourceRef: "actual_margin:gemini:2026-10",
+      },
+    ];
     const first = notifyAdminsFinanceAnomaly(db, {
       slotKey: "2026-10-01",
       criticalCount: 1,
@@ -257,6 +269,7 @@ describe("admin supply Draft notification watcher", () => {
         "Provider cost reconciliation mismatch",
         "gemini margin below floor",
       ],
+      incidents,
     });
     assert.deepEqual(first, [1, 2]);
 
@@ -272,8 +285,8 @@ describe("admin supply Draft notification watcher", () => {
     assert.deepEqual(
       rows.map((row) => [row.user_id, row.type, row.ref_id]),
       [
-        [1, "admin_finance_anomaly", 20261001],
-        [2, "admin_finance_anomaly", 20261001],
+        [1, "admin_finance_anomaly", 1],
+        [2, "admin_finance_anomaly", 1],
       ]
     );
     assert.match(rows[0]!.title, /Critical anomaly/);
@@ -288,12 +301,12 @@ describe("admin supply Draft notification watcher", () => {
       tag: string;
     };
     assert.equal(payload.url, "/admin/ops");
-    assert.equal(payload.tag, "admin-finance-anomaly:2026-10-01");
+    assert.equal(payload.tag, "admin-finance-anomaly:1");
 
     assert.equal(
       notificationHref({
         type: "admin_finance_anomaly",
-        ref_id: 20261001,
+        ref_id: 1,
         actor_id: null,
         comment_target_type: null,
         comment_target_id: null,
@@ -306,6 +319,7 @@ describe("admin supply Draft notification watcher", () => {
       criticalCount: 1,
       warningCount: 2,
       anomalyTitles: ["same slot"],
+      incidents,
     });
     assert.deepEqual(second, []);
     assert.equal(
@@ -323,6 +337,7 @@ describe("admin supply Draft notification watcher", () => {
         criticalCount: 1,
         warningCount: 0,
         anomalyTitles: [],
+        incidents,
       }),
       []
     );

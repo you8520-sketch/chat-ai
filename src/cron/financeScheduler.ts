@@ -97,15 +97,17 @@ async function executeFinanceSnapshot(slotKey: string) {
       summary,
       pricing: projection,
     });
-    const notified =
-      anomalyReport.anomalies.length > 0
-        ? notifyAdminsFinanceAnomaly(anomalyDb, {
-            slotKey,
-            criticalCount: anomalyReport.criticalCount,
-            warningCount: anomalyReport.warningCount,
-            anomalyTitles: anomalyReport.anomalies.map((row) => row.title),
-          })
-        : [];
+    const notified = notifyAdminsFinanceAnomaly(anomalyDb, {
+      slotKey,
+      criticalCount: anomalyReport.criticalCount,
+      warningCount: anomalyReport.warningCount,
+      anomalyTitles: anomalyReport.anomalies.map((row) => row.title),
+      incidents: anomalyReport.anomalies.map((row) => ({
+        code: row.code,
+        severity: row.severity,
+        sourceRef: row.sourceRef,
+      })),
+    });
     console.log("[finance-scheduler] anomaly radar", {
       status: anomalyReport.status,
       critical: anomalyReport.criticalCount,
