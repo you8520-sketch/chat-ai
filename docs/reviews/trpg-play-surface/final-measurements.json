@@ -1,0 +1,21 @@
+{
+  "codeHead": "73e5af666c24be168c36419d58f2344a6325029b",
+  "page": "http://localhost:3010/trpg/scroll-follow-lab",
+  "imagePage": "http://localhost:3010/trpg/inline-asset-frame-lab",
+  "portraitAsset": "/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b3-blue-window-full.webp",
+  "pwa": "dismissed with 나중에 in the test browser; the install banner was not changed",
+  "keyboard": "headless Chrome exposed navigator.virtualKeyboard, show() did not open a keyboard, visualViewport inset stayed 0. This is not an OS keyboard and not a shortened viewport.",
+  "reading": {
+    "390": { "viewport": [390, 844], "gapPx": 507, "gapShare": 60, "dockH": 135, "expanded": false, "statusInsideDock": true, "settingsHudOverlap": 0, "settings": { "w": 44, "h": 44, "top": 106 }, "pwa": false },
+    "430": { "viewport": [430, 932], "gapPx": 615, "gapShare": 66, "dockH": 115, "expanded": false, "statusInsideDock": true, "settingsHudOverlap": 0, "settings": { "w": 44, "h": 44, "top": 106 }, "pwa": false, "goal": "collapsed" },
+    "1440": { "viewport": [1440, 900], "gapPx": 668, "gapShare": 74, "dockH": 115, "expanded": false, "statusInsideDock": true, "settingsHudOverlap": 0, "pwa": false, "goal": "collapsed" }
+  },
+  "input390": { "expanded": true, "rows": 4, "dockH": 384 },
+  "input1440": { "expanded": true, "rows": 4 },
+  "draft": "초안 유지 확인 stayed after switching to the self tab and back to action",
+  "goal390": { "open": true, "overlap": 0, "pwa": false },
+  "portrait390": { "natural": [1020, 1536], "rendered": [236, 356], "fit": "contain", "figureH": 356 },
+  "lockedZoom": false,
+  "zoom390": { "natural": [1020, 1536], "box": [278, 844], "fit": "contain", "escClosed": true, "scrollBefore": 4117, "scrollAfter": 4117, "focusRestored": "분노 이미지 크게 보기" },
+  "zoom1440": { "natural": [1020, 1536], "box": [864, 765], "fit": "contain", "escClosed": true, "scrollBefore": 4514, "scrollAfter": 4514, "focusRestored": "분노 이미지 크게 보기" }
+}

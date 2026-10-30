@@ -60,7 +60,7 @@ describe("TRPG command dock", () => {
     assert.match(dock, /data-trpg-command-dock-tab="action"|data-trpg-command-dock-tab=\{mode\}/);
     const opened = initialTrpgCommandDockView({ actionInput: true, presentationBusy: false });
     assert.equal(opened.mode, "action");
-    assert.equal(opened.expanded, true);
+    assert.equal(opened.expanded, false);
   });
 
   it("B. human plus two AI sheets switch by participant id and exclude self", () => {
@@ -314,18 +314,31 @@ describe("TRPG command dock", () => {
     assert.match(client, /snap\.botGrossMargin/);
   });
 
-  it("collapses ACTION during narration and restores it when action input returns", () => {
-    const during = reconcileTrpgCommandDockLifecycle(
+  it("collapses ACTION during narration and leaves the reading surface collapsed when action input returns", () => {
+    const opened = selectTrpgCommandDockMode(
       initialTrpgCommandDockView({ actionInput: true, presentationBusy: false }),
-      { presentationBusy: true, actionInput: false, lifecycleChanged: true }
+      "action",
+      false
     );
+    assert.equal(opened.expanded, true);
+    const during = reconcileTrpgCommandDockLifecycle(opened, {
+      presentationBusy: true,
+      actionInput: false,
+      lifecycleChanged: true,
+    });
     assert.equal(during.expanded, false);
     const after = reconcileTrpgCommandDockLifecycle(during, {
       presentationBusy: false,
       actionInput: true,
       lifecycleChanged: true,
     });
-    assert.deepEqual(after, { mode: "action", expanded: true, explicitHold: null });
+    assert.deepEqual(after, { mode: "action", expanded: false, explicitHold: null });
+    const kept = reconcileTrpgCommandDockLifecycle(opened, {
+      presentationBusy: false,
+      actionInput: true,
+      lifecycleChanged: true,
+    });
+    assert.equal(kept.expanded, true);
     const self = openTrpgCommandDockMode(after, "self", false);
     const polled = reconcileTrpgCommandDockLifecycle(self, {
       presentationBusy: false,

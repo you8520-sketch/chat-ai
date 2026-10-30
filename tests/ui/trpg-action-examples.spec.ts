@@ -45,11 +45,26 @@ async function openActionExamples(
   const autoOn = opts?.autoOn === false ? "" : "&autoon=1";
   await page.goto(`${LAB}&examples=${examples}${autoOn}`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-trpg-command-dock]").waitFor({ state: "visible" });
-  await page.locator("[data-trpg-next-action]").waitFor({ state: "visible" });
   const actionTab = page.locator('[data-trpg-command-dock-tab="action"]');
   if ((await actionTab.getAttribute("aria-selected")) !== "true") {
     await actionTab.click({ force: true });
   }
+  await page.locator("[data-trpg-next-action]").waitFor({ state: "visible" });
+}
+
+/** Let dock-expand follow finish so later window-scroll asserts measure example reveal only. */
+async function settleWindowScrollAfterDockExpand(page: Page) {
+  await page.waitForFunction(() => {
+    const w = window as Window & { __trpgDockScrollY?: number; __trpgDockScrollStable?: number };
+    const y = window.scrollY;
+    if (w.__trpgDockScrollY === y) {
+      w.__trpgDockScrollStable = (w.__trpgDockScrollStable ?? 0) + 1;
+    } else {
+      w.__trpgDockScrollY = y;
+      w.__trpgDockScrollStable = 0;
+    }
+    return (w.__trpgDockScrollStable ?? 0) >= 3;
+  });
 }
 
 async function exampleToggle(page: Page) {
@@ -101,6 +116,7 @@ test.describe("TRPG action example panel visibility", () => {
   test("cached examples become visible inside the command-dock panel", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openActionExamples(page, "cached");
+    await settleWindowScrollAfterDockExpand(page);
     const windowBefore = await page.evaluate(() => window.scrollY);
     await page.locator("[data-trpg-reply-stance]").first().waitFor({ state: "attached" });
     await expect.poll(async () => (await measureExamples(page)).firstVisibleInPanel).toBe(true);

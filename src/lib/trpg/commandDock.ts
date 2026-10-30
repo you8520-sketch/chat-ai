@@ -41,13 +41,13 @@ export function hangulObjectParticle(name: string): "을" | "를" {
   return (code - 0xac00) % 28 === 0 ? "를" : "을";
 }
 
-export function initialTrpgCommandDockView(opts: {
+export function initialTrpgCommandDockView(_opts: {
   actionInput: boolean;
   presentationBusy: boolean;
 }): TrpgCommandDockView {
   return {
     mode: "action",
-    expanded: opts.actionInput && !opts.presentationBusy,
+    expanded: false,
     explicitHold: null,
   };
 }
@@ -112,8 +112,11 @@ export function reconcileTrpgCommandDockLifecycle(
   if (protectedHold && current.explicitHold) {
     return { ...current, mode: current.explicitHold, expanded: true };
   }
-  if (opts.actionInput) {
-    return { mode: "action", expanded: true, explicitHold: null };
+  if (current.explicitHold === "action") {
+    return { ...current, mode: "action", expanded: true };
+  }
+  if (opts.actionInput && current.expanded && current.mode === "action") {
+    return current;
   }
   return { mode: current.mode, expanded: false, explicitHold: null };
 }

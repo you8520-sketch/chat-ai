@@ -118,12 +118,14 @@ export default function TrpgTaggedNovelText({
           part.participantId,
           unlockedUrlsByCharacterId
         );
+        const characterName = characterCatalog.find((row) => row.participantId === part.participantId)?.name;
         return (
           <TrpgCharacterSceneAsset
             key={`character-${part.participantId}-${part.asset.url}-${i}`}
             asset={part.asset}
             viewerIsCreator={viewerContext.viewerIsCreator}
             unlockedUrls={viewerContext.unlockedUrls}
+            label={characterName}
           />
         );
       }
@@ -134,6 +136,7 @@ export default function TrpgTaggedNovelText({
             asset={part.asset}
             viewerIsCreator={viewerIsCreator}
             unlockedUrls={unlockedUrls}
+            label={npcCatalog.find((row) => row.npcKey === part.npcKey)?.name}
           />
         );
       default: {

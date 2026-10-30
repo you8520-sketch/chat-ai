@@ -41,9 +41,10 @@ function urls(text: string, assets: CharacterAsset[]) {
 
 describe("TRPG inline asset frame", () => {
   it("keeps one size policy and does not restyle global chat frames", () => {
-    assert.match(TRPG_INLINE_PORTRAIT_FIGURE_CLASS, /200px/);
-    assert.match(TRPG_INLINE_PORTRAIT_FIGURE_CLASS, /240px/);
-    assert.match(TRPG_INLINE_PORTRAIT_FIGURE_CLASS, /30svh/);
+    assert.match(TRPG_INLINE_PORTRAIT_FIGURE_CLASS, /360px/);
+    assert.match(TRPG_INLINE_PORTRAIT_FIGURE_CLASS, /440px/);
+    assert.match(TRPG_INLINE_PORTRAIT_FIGURE_CLASS, /42svh/);
+    assert.match(TRPG_INLINE_IMG_CLASS, /object-contain/);
     assert.match(TRPG_INLINE_SQUARE_FIGURE_CLASS, /220px/);
     assert.match(TRPG_INLINE_SQUARE_FIGURE_CLASS, /280px/);
     assert.match(TRPG_INLINE_SQUARE_FIGURE_CLASS, /32svh/);
@@ -85,19 +86,20 @@ describe("TRPG inline asset frame", () => {
     const phoneTall = trpgInlineRenderedBox({ asset: tall, ...phone });
     const desktopTall = trpgInlineRenderedBox({ asset: tall, ...desktop });
     assert.ok(phoneTall.height <= TRPG_INLINE_PORTRAIT_HEIGHT_CAP.mobilePx + 0.01);
-    assert.ok(phoneTall.height <= phone.viewportHeight * 0.32);
-    assert.ok(Math.abs(phoneTall.height - 200) < 0.01);
-    assert.ok(Math.abs(phoneTall.width - 112.5) < 0.01);
+    assert.ok(phoneTall.height <= phone.viewportHeight * TRPG_INLINE_PORTRAIT_HEIGHT_CAP.viewportRatio + 0.01);
+    assert.ok(Math.abs(phoneTall.height - 310.8) < 0.01);
+    assert.ok(Math.abs(phoneTall.width - 174.825) < 0.01);
+    assert.ok(Math.abs(phoneTall.width / phoneTall.height - 900 / 1600) < 0.001);
     assert.ok(desktopTall.height <= TRPG_INLINE_PORTRAIT_HEIGHT_CAP.desktopPx + 0.01);
-    assert.ok(Math.abs(desktopTall.height - 240) < 0.01);
-    assert.ok(Math.abs(desktopTall.width - 135) < 0.01);
+    assert.ok(Math.abs(desktopTall.height - 378) < 0.01);
+    assert.ok(Math.abs(desktopTall.width - 212.625) < 0.01);
     const shortDesktop = trpgInlineRenderedBox({
       asset: tall,
       viewportWidth: 1440,
       viewportHeight: 600,
       columnWidth: 768,
     });
-    assert.ok(Math.abs(shortDesktop.height - 180) < 0.01);
+    assert.ok(Math.abs(shortDesktop.height - 252) < 0.01);
     const squarePhone = trpgInlineRenderedBox({ asset: square, ...phone });
     const squareDesktop = trpgInlineRenderedBox({ asset: square, ...desktop });
     assert.ok(Math.abs(squarePhone.height - TRPG_INLINE_SQUARE_HEIGHT_CAP.mobilePx) < 0.01);
@@ -114,8 +116,8 @@ describe("TRPG inline asset frame", () => {
       viewportHeight: 740,
       columnWidth: 360,
     });
-    assert.ok(Math.abs(box.height - 200) < 0.01);
-    assert.ok(box.width < 40);
+    assert.ok(Math.abs(box.height - 310.8) < 0.01);
+    assert.ok(Math.abs(box.width / box.height - 300 / 2400) < 0.001);
   });
 
   it("E. caps an unsized image from its intrinsic pixels and reserves nothing before load", () => {
@@ -134,8 +136,8 @@ describe("TRPG inline asset frame", () => {
       intrinsicWidth: 900,
       intrinsicHeight: 1600,
     });
-    assert.ok(Math.abs(after.height - 200) < 0.01);
-    assert.ok(after.width < 130);
+    assert.ok(Math.abs(after.height - 310.8) < 0.01);
+    assert.ok(Math.abs(after.width / after.height - 900 / 1600) < 0.001);
   });
 
   it("F-G. mixes portrait and landscape under one tag and stays stable for one seed", () => {
