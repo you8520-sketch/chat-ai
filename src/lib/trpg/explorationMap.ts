@@ -493,18 +493,52 @@ export function legacyFacilityMap(map: ExplorationMap): boolean {
  * outside intent, and the outside of the exit room itself (`출구 밖`), is a departure
  * priced only from the open exit. A blast-gate passage is a departure only when the
  * movement declaration owner accepts it as a live clause.
+ *
+ * A v2 adventure has no outside room. An explicit outside boundary of a `role=goal` room
+ * (`출입문 밖`) is the same terminal departure, priced only while that seat is in that
+ * goal room. `fromRoomId` lets the caller prove that seat position; without it, only the
+ * named goal room can be recognized. Merely standing in a goal room never creates a
+ * departure command.
  */
-export function explorationCommandsFromMovementBody(map: ExplorationMap, body: string): ExplorationCommand[] {
+export function explorationCommandsFromMovementBody(
+  map: ExplorationMap,
+  body: string,
+  fromRoomId?: string
+): ExplorationCommand[] {
   if (!explorationHasMap(map)) return [];
   const commands: ExplorationCommand[] = [];
   let departing = false;
-  const byLength = [...map.rooms].sort((a, b) => nameKey(b.name ?? b.id).length - nameKey(a.name ?? a.id).length);
-  const pushDepart = () => {
-    if (departing || !legacyFacilityMap(map)) return;
+  const fromRoom = fromRoomId?.trim() ? canonicalRoomId(map, fromRoomId) ?? fromRoomId.trim() : null;
+  const roleOf = (roomId: string) => map.rooms.find((room) => room.id === roomId)?.role;
+  const canDepartFrom = (interiorRoomId: string | null): boolean => {
+    if (legacyFacilityMap(map)) return true;
+    if (fromRoom) {
+      if (roleOf(fromRoom) !== "goal") return false;
+      return !interiorRoomId || interiorRoomId === fromRoom;
+    }
+    return Boolean(interiorRoomId && roleOf(interiorRoomId) === "goal");
+  };
+  const pushDepart = (interiorRoomId: string | null) => {
+    if (departing || !canDepartFrom(interiorRoomId)) return;
     departing = true;
     commands.push({ op: "depart" });
   };
+  const byLength = [...map.rooms].sort((a, b) => nameKey(b.name ?? b.id).length - nameKey(a.name ?? a.id).length);
+  const attachedOutside = /^(.+?)\s*(?:밖|바깥)$/u;
   for (const goal of declaredMovementGoals(body)) {
+    // Korean commonly attaches the boundary noun: 문밖으로, 출입문밖으로. The
+    // movement owner already stripped the particle, so "문밖" is the goal phrase.
+    const attached = legacyFacilityMap(map) ? null : attachedOutside.exec(goal.trim());
+    if (attached) {
+      const asRoom = canonicalRoomId(map, goal);
+      if (asRoom) {
+        commands.push({ op: "move", roomId: asRoom });
+        continue;
+      }
+      const interior = canonicalRoomId(map, attached[1]!.trim());
+      if (!interior || roleOf(interior) === "goal") pushDepart(interior);
+      continue;
+    }
     const described = describeMovementGoal(goal);
     if (described.polarity === "outside") {
       const asRoom = canonicalRoomId(map, goal);
@@ -513,8 +547,8 @@ export function explorationCommandsFromMovementBody(map: ExplorationMap, body: s
         continue;
       }
       const interior = described.place ? canonicalRoomId(map, described.place) : null;
-      if (interior && interior !== EXPLORATION_EXIT_ROOM) continue;
-      pushDepart();
+      if (interior && interior !== EXPLORATION_EXIT_ROOM && roleOf(interior) !== "goal") continue;
+      pushDepart(interior);
       continue;
     }
     const place = described.place;
@@ -527,7 +561,7 @@ export function explorationCommandsFromMovementBody(map: ExplorationMap, body: s
     if (roomId) commands.push({ op: "move", roomId });
     else if (place) commands.push({ op: "move", roomId: place });
   }
-  if (!departing && declaresLiveFacilityExit(body)) pushDepart();
+  if (!departing && legacyFacilityMap(map) && declaresLiveFacilityExit(body)) pushDepart(null);
   if (commands.length > EXPLORATION_COMMAND_LIMIT) throw new Error("한 번에 너무 많은 탐험 명령입니다.");
   return commands;
 }
@@ -788,6 +822,19 @@ function legacyLatchShut(state: ExplorationState, dest: string): boolean {
   return isLegacy(state) && dest === EXPLORATION_EXIT_ROOM && !state.alarmFlagged;
 }
 
+/** v2: only a `role=goal` room is a terminal threshold. Reaching it is not itself a departure. */
+function adventureGoalRoom(state: ExplorationState, roomId: string): ExplorationRoom | undefined {
+  if (isLegacy(state)) return undefined;
+  return state.map.rooms.find((room) => room.id === roomId && room.role === "goal");
+}
+
+function departureAllowed(state: ExplorationState, roomId: string): boolean {
+  if (isLegacy(state)) {
+    return legacyFacilityMap(state.map) && roomId === EXPLORATION_EXIT_ROOM && state.alarmFlagged;
+  }
+  return adventureGoalRoom(state, roomId) != null;
+}
+
 export function priceExplorationCommands(opts: {
   state: ExplorationState;
   fromRoomId: string;
@@ -804,10 +851,14 @@ export function priceExplorationCommands(opts: {
     if (spent + cost > opts.apRemaining) throw new Error("행동력이 부족합니다.");
     if (leftFacility) throw new Error("연결되지 않은 곳으로는 이동할 수 없습니다.");
     if (command.op === "depart") {
-      if (!isLegacy(opts.state) || !legacyFacilityMap(opts.state.map) || roomId !== EXPLORATION_EXIT_ROOM) {
+      if (isLegacy(opts.state)) {
+        if (!legacyFacilityMap(opts.state.map) || roomId !== EXPLORATION_EXIT_ROOM) {
+          throw new Error("연결되지 않은 곳으로는 이동할 수 없습니다.");
+        }
+        if (!opts.state.alarmFlagged) throw new Error("출구 빗장은 경보가 울린 뒤에만 풀립니다.");
+      } else if (!adventureGoalRoom(opts.state, roomId)) {
         throw new Error("연결되지 않은 곳으로는 이동할 수 없습니다.");
       }
-      if (!opts.state.alarmFlagged) throw new Error("출구 빗장은 경보가 울린 뒤에만 풀립니다.");
       leftFacility = true;
       spent += cost;
       continue;
@@ -883,24 +934,26 @@ export function legalExplorationMovePlans(opts: {
     }
   };
   walk(from, [], []);
-  const departCommands: ExplorationCommand[] = [{ op: "depart" }];
-  try {
-    priceExplorationCommands({
-      state: opts.state,
-      fromRoomId: from,
-      commands: departCommands,
-      apRemaining: opts.apRemaining,
-    });
-    if (!seen.has(BOT_EXPLORATION_DEPART)) {
-      seen.add(BOT_EXPLORATION_DEPART);
-      out.push({
-        token: BOT_EXPLORATION_DEPART,
+  if (isLegacy(opts.state)) {
+    const departCommands: ExplorationCommand[] = [{ op: "depart" }];
+    try {
+      priceExplorationCommands({
+        state: opts.state,
+        fromRoomId: from,
         commands: departCommands,
-        labels: [EXPLORATION_DEPARTED_LOCATION],
+        apRemaining: opts.apRemaining,
       });
+      if (!seen.has(BOT_EXPLORATION_DEPART)) {
+        seen.add(BOT_EXPLORATION_DEPART);
+        out.push({
+          token: BOT_EXPLORATION_DEPART,
+          commands: departCommands,
+          labels: [EXPLORATION_DEPARTED_LOCATION],
+        });
+      }
+    } catch {
+      // Departure stays off the enum until the existing price owner accepts it.
     }
-  } catch {
-    // Departure stays off the enum until the existing price owner accepts it.
   }
   return out;
 }
@@ -1084,7 +1137,7 @@ export function settleExplorationActor(opts: {
   for (const command of opts.pending.commands) {
     const here = roomId === EXPLORATION_DEPARTED_LOCATION ? EXPLORATION_DEPARTED_LOCATION : roomName(state.map, roomId);
     if (command.op === "depart") {
-      if (!legacy || roomId !== EXPLORATION_EXIT_ROOM || !state.alarmFlagged) {
+      if (!departureAllowed(state, roomId)) {
         result.lines.push(`${opts.name}: the prepared departure could not be applied. They stay in ${here}.`);
         break;
       }
@@ -1095,9 +1148,12 @@ export function settleExplorationActor(opts: {
         };
       }
       departed = true;
+      const fromLabel = roomName(state.map, roomId);
       roomId = EXPLORATION_DEPARTED_LOCATION;
       result.lines.push(
-        `${opts.name}: left the facility from ${EXPLORATION_EXIT_ROOM}. They are outside. Standing in ${EXPLORATION_EXIT_ROOM} is a different fact.`
+        legacy
+          ? `${opts.name}: left the facility from ${EXPLORATION_EXIT_ROOM}. They are outside. Standing in ${EXPLORATION_EXIT_ROOM} is a different fact.`
+          : `${opts.name}: left ${fromLabel} through the explicit exit. They are outside. Standing in ${fromLabel} is a different fact.`
       );
       continue;
     }
@@ -1300,7 +1356,9 @@ export function formatExplorationGmBlock(opts: {
     const start = seat.start.trim() || fallback;
     const end = seat.end.trim() || start;
     if (end === EXPLORATION_DEPARTED_LOCATION) {
-      return `${seat.name} left the facility. They are outside, not in ${EXPLORATION_EXIT_ROOM}.`;
+      return opts.legacy
+        ? `${seat.name} left the facility. They are outside, not in ${EXPLORATION_EXIT_ROOM}.`
+        : `${seat.name} is outside the mapped rooms. They left through an explicit exit; do not place them back inside.`;
     }
     if (start === end) return `${seat.name} is in ${end}.`;
     return `${seat.name} started in ${start} and is now in ${end}.`;
@@ -1332,12 +1390,20 @@ export function formatExplorationGmBlock(opts: {
     ...locked,
     discoveries,
     ...opts.resultLines,
-    legacy ? explorationDepartureFact(legacy.alarm, opts.seats) : "",
+    legacy ? explorationDepartureFact(legacy.alarm, opts.seats) : adventureDepartureFact(opts.seats),
     "Describe the rooms they occupy. Only the open passages listed here lead out. Do not walk anyone down a passage they did not take.",
     legacy?.flags.length ? `Server flags already include: ${legacy.flags.join("; ")}. Other world facts may still be recorded.` : "",
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+function adventureDepartureFact(seats: readonly ExplorationSeatFact[]): string {
+  const outside = seats
+    .filter((seat) => (seat.end.trim() || seat.start.trim()) === EXPLORATION_DEPARTED_LOCATION)
+    .map((seat) => seat.name);
+  if (outside.length === 0) return "";
+  return `Outside is a server fact for: ${outside.join(", ")}. They left only through the explicit exit; do not narrate them inside a mapped room.`;
 }
 
 function explorationDepartureFact(alarm: boolean, seats: readonly ExplorationSeatFact[]): string {

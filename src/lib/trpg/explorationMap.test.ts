@@ -554,9 +554,24 @@ describe("exploration map generation", () => {
         }),
       /아직 열리지 않은|연결되지 않은/
     );
-    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "출입문 밖으로 나간다."), []);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "출입문 밖으로 나간다."), [{ op: "depart" }]);
     assert.deepEqual(explorationCommandsFromMovementBody(state.map, "문 밖으로 나선다."), []);
     assert.deepEqual(explorationCommandsFromMovementBody(state.map, "밖으로 나간다."), []);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "출입문 밖으로 나간다.", "door"), [{ op: "depart" }]);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "출입문 밖으로 나간다.", "teahouse"), []);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "문밖으로 나선다.", "door"), [{ op: "depart" }]);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "문밖으로 나선다."), []);
+    assert.deepEqual(explorationCommandsFromMovementBody(state.map, "밖으로 나간다.", "door"), [{ op: "depart" }]);
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state,
+          fromRoomId: "teahouse",
+          commands: [{ op: "depart" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
     const alley = explorationCommandsFromMovementBody(state.map, "골목으로 나선다.");
     assert.deepEqual(alley, [{ op: "move", roomId: "골목" }]);
     assert.throws(

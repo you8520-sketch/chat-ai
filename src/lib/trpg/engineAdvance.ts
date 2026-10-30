@@ -585,17 +585,29 @@ export function submitTrpgAction(
   const actionType = resolveServerHumanActionType(text);
   const origin = parseTrpgInputOrigin(opts.inputOrigin);
   const mapped = loadExplorationState(db, opts.campaignId);
+  const myLocation =
+    (
+      db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(me.id) as
+        | { location?: string | null }
+        | undefined
+    )?.location?.trim() ?? "";
   // Absent explorationCommands is a general submit. v2 does not turn that into an
   // exploration submit when the body also carries a non-move action.
   const explicitExploration = commands.length > 0;
   const inferredMoves =
-    !explicitExploration && mapped ? explorationCommandsFromMovementBody(mapped.map, text) : [];
-  if (mapped?.version === 2 && inferredMoves.length > 0 && omitLiveMovementClauses(text)) {
+    !explicitExploration && mapped ? explorationCommandsFromMovementBody(mapped.map, text, myLocation) : [];
+  // A terminal exit is still an explicit exploration command. Let its farewell/flavor prose
+  // travel as the method note, but keep the move-plus-other-action refusal for every
+  // non-terminal movement.
+  const inferredDepartureOnly = inferredMoves.length > 0 && inferredMoves.every((command) => command.op === "depart");
+  if (mapped?.version === 2 && inferredMoves.length > 0 && !inferredDepartureOnly && omitLiveMovementClauses(text)) {
     throw new Error(
       "탐험 대기열이 비어 있어 이 제출은 일반 행동입니다. 이동과 다른 행동을 한 번에 보내지 않습니다. 이동은 탐험 대기열에 넣고, 구매는 대기열을 비운 뒤 따로 보내세요. 입력은 그대로 두었습니다."
     );
   }
   const pricedCommands = explicitExploration ? commands : inferredMoves;
+  const inferredDepartureMethod =
+    inferredDepartureOnly && omitLiveMovementClauses(text) === "" ? "" : text;
   if (pricedCommands.length > 0) {
     db.transaction(() => {
       const prepared = prepareLockedExploration(db, {
@@ -603,7 +615,7 @@ export function submitTrpgAction(
         roundId: round.id,
         participantId: me.id,
         commands: pricedCommands,
-        freeText: text,
+        freeText: inferredDepartureMethod,
       });
       assertTrpgActionMaxChars(prepared.body);
       upsertLockedAction(
@@ -1474,7 +1486,7 @@ async function generateBotActions(
     } else if (structuredRequested) {
       fallbackBranch = "malformed-structured-output";
     } else if (latestMap) {
-      declared = explorationCommandsFromMovementBody(latestMap.map, body);
+      declared = explorationCommandsFromMovementBody(latestMap.map, body, self?.location);
     }
     const declaredRoomIds =
       structured &&
@@ -1537,7 +1549,7 @@ async function generateBotActions(
             remainder.text && Array.from(remainder.text).length <= TRPG_ACTION_MAX_CHARS ? remainder.text : "";
           const locked =
             usableRemainder &&
-            (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
+            (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder, self?.location).length === 0)
               ? canonicalRemainderLock(usableRemainder, remainder.finishedResults)
               : "";
           if (locked) {
@@ -1603,7 +1615,7 @@ async function generateBotActions(
             }
           } else if (
             usableRemainder &&
-            (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0)
+            (!latestMap || explorationCommandsFromMovementBody(latestMap.map, usableRemainder, self?.location).length === 0)
           ) {
             const locked = canonicalRemainderLock(usableRemainder, remainder.finishedResults);
             if (locked) {
@@ -1641,7 +1653,8 @@ async function generateBotActions(
       const usableRemainder =
         remainder.text && Array.from(remainder.text).length <= TRPG_ACTION_MAX_CHARS ? remainder.text : "";
       const locked =
-        usableRemainder && explorationCommandsFromMovementBody(latestMap.map, usableRemainder).length === 0
+        usableRemainder &&
+        explorationCommandsFromMovementBody(latestMap.map, usableRemainder, self?.location).length === 0
           ? canonicalRemainderLock(usableRemainder, remainder.finishedResults)
           : "";
       if (fallbackBranch !== "invalid-structured-plan" && fallbackBranch !== "malformed-structured-output") {
@@ -1925,7 +1938,7 @@ async function runGmForRound(
         })
       : null;
   const endingFinishWouldStand = campaignFinishWouldStand({
-    exploration: loadExplorationState(db, opts.campaignId),
+    exploration: explorationPreview?.state ?? loadExplorationState(db, opts.campaignId),
     participantIds: sheets.map((sheet) => sheet.participantId),
     locations: seatLocationsForFinish(sheets, explorationPreview?.results),
     goals: goalLedger.goals,
@@ -2275,8 +2288,9 @@ function acceptedItemsBySeat(
  * flag-only commit and do not receive an ending-ready head.
  *
  * v2 `role=goal` is a destination annotation, not a one-seat ending. A host-confirmed
- * goal still needs every seat in a goal-role room. A reach_location or end_encounter
- * completion is that criterion's own contract, so companions are not forced there.
+ * goal still needs every seat in a goal-role room, or outside after that seat's own
+ * explicit exit from a goal-role room. A reach_location or end_encounter completion is
+ * that criterion's own contract, so companions are not forced there.
  */
 function resolveEffectiveCampaignFinished(opts: {
   gmRequested: boolean;
@@ -2325,7 +2339,10 @@ function partyOccupiesAdventureGoals(
 ): boolean {
   if (adventureGoalRooms(state).length === 0) return false;
   if (participantIds.length === 0 || locations.length !== participantIds.length) return false;
-  return locations.every((location) => seatOccupiesAdventureGoal(state, location));
+  const departed = new Set(state.departedParticipantIds);
+  return participantIds.every(
+    (participantId, index) => departed.has(participantId) || seatOccupiesAdventureGoal(state, locations[index] ?? "")
+  );
 }
 
 function seatLocationsForFinish(
