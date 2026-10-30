@@ -19,20 +19,20 @@ Use [SUGGESTED REPLIES VOICE CONTEXT] only for suggestedReplies voice/style — 
 
 const SHARED_PROMISES_REMOVE_RULE = `- promisesRemove: copy EXACTLY the [ACTIVE PROMISES] string(s) this turn's prose explicitly cancels, withdraws, fulfils, or expires. Unclear or several possible targets → []. Never remove another promise; a cancellation is never a promisesAdd.`;
 
-const SHARED_RELATIONSHIP_OUTPUT_RULES = `RELATIONSHIP section — durable relationship memory only, from this turn's prose.
-Return these arrays; empty arrays are correct when nothing changed:
-- items: new/changed possessions only ("name: item1, item2"); gifts/transfers as "from→to: item" or the receiver's updated line.
+const SHARED_RELATIONSHIP_FACT_RULES = `- items: one line per person whose possessions changed ("name: item1, item2"). A give, take, or handoff is "from→to: item"; do not omit it. Wearing shows who has that object on their body at that moment and does not erase another person's same-named object unless this prose says that object was given, taken, or lost. Skip ordinary clothes, uniforms, and furniture.
 - itemsRemove: current possession lines that are no longer true (copy the previous line EXACTLY).
-- promisesAdd: newly made promises as [{ "text": "...", "deadline": "..." }].
+- promisesAdd: an explicit promise that stays binding after this turn, as [{ "text": "...", "deadline": "..." }]. deadline is the stated scope, or "" if none. A promise made only for the current treatment uses that treatment as deadline. Do not add a conditional offer the other party does not accept, and do not record agreement, fulfillment, cancellation, or a completed release unless this turn's prose shows it.
 ${SHARED_PROMISES_REMOVE_RULE}
 Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
 
+const SHARED_RELATIONSHIP_OUTPUT_RULES = `RELATIONSHIP section — possessions and promises from this turn's prose.
+Return these arrays; empty arrays are correct when this turn has no possession change and no explicit promise.
+${SHARED_RELATIONSHIP_FACT_RULES}`;
+
 const SHARED_RELATIONSHIP_REGEN_RULES = `RELATIONSHIP section — the assistant reply for this turn was REGENERATED.
 Compare the rejected assistant draft and the new canonical assistant in the user block.
-- itemsRemove: current possession lines no longer true in the new canonical reply (copy the line EXACTLY), including transfers that existed only in the rejected draft.
-- items / promisesAdd / promisesRemove: only changes introduced by the NEW canonical reply.
-${SHARED_PROMISES_REMOVE_RULE}
-Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
+items, promisesAdd, and promisesRemove record only what the NEW canonical reply introduces. itemsRemove also drops transfers that existed only in the rejected draft.
+${SHARED_RELATIONSHIP_FACT_RULES}`;
 
 export type SharedWidgetRequiredKeys = {
   characterKeys: readonly string[];

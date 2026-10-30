@@ -98,6 +98,19 @@ describe("B35 A1 — Relationship Ledger ownership vs information-disclosure eve
     );
   });
 
+  it("an unaccepted conditional offer is not a ledger promise", () => {
+    assert.equal(
+      detectRelationshipLedgerOwnedFact(
+        owned(
+          "relationship_proposal",
+          "제이는 돌아오지 못하면 오스카가 그 순간부터 자유라고 말했다.",
+          "relationship"
+        )
+      ),
+      null
+    );
+  });
+
   it("promise creation / cancellation stays with the Relationship Ledger", () => {
     assert.equal(
       detectRelationshipLedgerOwnedFact(owned("promise", "렌은 내일 돌아오겠다고 약속했다.")),

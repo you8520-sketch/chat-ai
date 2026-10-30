@@ -81,9 +81,23 @@ export function groupPossessionsByPerson(entries: string[]): GroupedPossessions[
 }
 
 export function formatGroupedPossessionsForPrompt(entries: string[]): string {
-  return groupPossessionsByPerson(entries)
-    .map(({ person, items }) => `${person}: ${items.map((i) => i.name).join(", ")}`)
-    .join("\n");
+  const map = new Map<string, string[]>();
+  for (const rawEntry of entries) {
+    const parsed = parsePossessionEntry(rawEntry);
+    if (!parsed) {
+      const fallback = map.get(rawEntry) ?? [];
+      if (!fallback.includes(rawEntry)) fallback.push(rawEntry);
+      map.set(rawEntry, fallback);
+      continue;
+    }
+    const holder = possessionCurrentHolder(parsed.person);
+    const list = map.get(holder) ?? [];
+    for (const name of parsed.items) {
+      if (!list.includes(name)) list.push(name);
+    }
+    map.set(holder, list);
+  }
+  return [...map.entries()].map(([person, items]) => `${person}: ${items.join(", ")}`).join("\n");
 }
 
 export type PossessionTransferNames = { charName: string; userName: string };
@@ -109,6 +123,13 @@ function possessionPersonMatches(
   );
 }
 
+/** `A→B` currently holds for B. A plain person line holds for that person. */
+export function possessionCurrentHolder(person: string): string {
+  const parts = person.split("→").map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 2) return parts[parts.length - 1]!;
+  return person.trim();
+}
+
 /** delta의 A→B 전달 항목 — 보낸 사람 prev 줄에서 해당 물건 제거 */
 export function expandPossessionTransferRemovals(
   prevEntries: string[],
@@ -127,23 +148,84 @@ export function expandPossessionTransferRemovals(
     const [fromPerson, toPerson] = arrowParts;
     if (!fromPerson || !toPerson || fromPerson === toPerson) continue;
 
-    const transferred = new Set(parsed.items.map((i) => i.trim()).filter(Boolean));
-    if (transferred.size === 0) continue;
+    const transferred = [...new Set(parsed.items.map((i) => i.trim()).filter(Boolean))];
+    if (transferred.length === 0) continue;
 
+    const holderLines: Array<{ raw: string; person: string; items: string[] }> = [];
     for (const raw of prevEntries) {
       const prev = parsePossessionEntry(raw.trim());
       if (!prev) continue;
-      if (!possessionPersonMatches(prev.person, fromPerson, names)) continue;
+      if (!possessionPersonMatches(possessionCurrentHolder(prev.person), fromPerson, names)) {
+        continue;
+      }
+      holderLines.push({ raw, person: prev.person, items: prev.items });
+    }
+    if (holderLines.length === 0) continue;
 
-      const remaining = prev.items.filter((i) => !transferred.has(i.trim()));
-      const removedAny = prev.items.some((i) => transferred.has(i.trim()));
-      if (!removedAny) continue;
+    const countByName = new Map<string, number>();
+    for (const name of transferred) {
+      countByName.set(
+        name,
+        holderLines.filter((line) => line.items.some((item) => item.trim() === name)).length
+      );
+    }
 
-      itemsRemove.push(raw);
-      if (remaining.length > 0) {
-        itemsRevise.push(`${prev.person}: ${remaining.join(", ")}`);
+    // 1 = that object is unique, remove it. 2 = one of two moved, keep one
+    // leftover as a plain hold. 3+ cannot count leftovers in this schema.
+    const consumable = new Set<string>();
+    const leftoverNames: string[] = [];
+    for (const name of transferred) {
+      const count = countByName.get(name) ?? 0;
+      if (count === 1) {
+        consumable.add(name);
+      } else if (count === 2) {
+        consumable.add(name);
+        leftoverNames.push(name);
       }
     }
+    if (consumable.size === 0) continue;
+
+    for (const line of holderLines) {
+      const remaining = line.items.filter((item) => !consumable.has(item.trim()));
+      const removedAny = line.items.some((item) => consumable.has(item.trim()));
+      if (!removedAny) continue;
+      itemsRemove.push(line.raw);
+      if (remaining.length > 0) {
+        itemsRevise.push(`${line.person}: ${remaining.join(", ")}`);
+      }
+    }
+
+    if (leftoverNames.length === 0) continue;
+
+    const plain = holderLines.find((line) => !line.person.includes("→"));
+    const leftoverPerson = plain?.person ?? fromPerson;
+    const reviseIdx = itemsRevise.findIndex((row) => {
+      const parsedRow = parsePossessionEntry(row);
+      return Boolean(
+        parsedRow &&
+          !parsedRow.person.includes("→") &&
+          possessionPersonMatches(parsedRow.person, leftoverPerson, names)
+      );
+    });
+    if (reviseIdx >= 0) {
+      const parsedRow = parsePossessionEntry(itemsRevise[reviseIdx]!)!;
+      const combined = [...parsedRow.items];
+      for (const name of leftoverNames) {
+        if (!combined.includes(name)) combined.push(name);
+      }
+      itemsRevise[reviseIdx] = `${parsedRow.person}: ${combined.join(", ")}`;
+      continue;
+    }
+    if (plain && !itemsRemove.includes(plain.raw)) {
+      itemsRemove.push(plain.raw);
+      const combined = [...plain.items];
+      for (const name of leftoverNames) {
+        if (!combined.includes(name)) combined.push(name);
+      }
+      itemsRevise.push(`${plain.person}: ${combined.join(", ")}`);
+      continue;
+    }
+    itemsRevise.push(`${fromPerson}: ${leftoverNames.join(", ")}`);
   }
 
   return {

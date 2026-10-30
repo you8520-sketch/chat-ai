@@ -520,30 +520,7 @@ function possessionEntryPersonKey(entry: string, names: HonorificNames): string 
   return parsed?.person ?? normalized;
 }
 
-function removePossessionItemsFromOtherPeople(
-  byPerson: Map<string, string>,
-  ownerKey: string,
-  movedItems: string[],
-  names: HonorificNames
-): void {
-  const moved = new Set(movedItems.map((item) => item.trim()).filter(Boolean));
-  if (moved.size === 0) return;
-
-  for (const [personKey, rawEntry] of [...byPerson.entries()]) {
-    if (personKey === ownerKey) continue;
-    const parsed = parsePossessionEntry(rawEntry);
-    if (!parsed) continue;
-    const remaining = parsed.items.filter((item) => !moved.has(item.trim()));
-    if (remaining.length === parsed.items.length) continue;
-    if (remaining.length === 0) {
-      byPerson.delete(personKey);
-      continue;
-    }
-    byPerson.set(personKey, normalizeItemEntry(`${parsed.person}: ${remaining.join(", ")}`, names));
-  }
-}
-
-/** 같은 인물 소지품 줄은 갱신(교체) — 전달 후 옛 줄+새 줄 중복 방지 */
+/** 같은 인물 소지품 줄은 갱신(교체). 같은 이름의 물건을 다른 사람에게서 지우지 않는다. */
 function mergePossessionEntries(
   prev: string[],
   remove: string[] | undefined,
@@ -563,10 +540,6 @@ function mergePossessionEntries(
     const normalized = normalizeItemEntry(raw, names);
     if (!normalized) continue;
     const ownerKey = possessionEntryPersonKey(normalized, names);
-    const parsed = parsePossessionEntry(normalized);
-    if (parsed) {
-      removePossessionItemsFromOtherPeople(byPerson, ownerKey, parsed.items, names);
-    }
     byPerson.set(ownerKey, normalized);
   }
   return dedupeNormalizedItems([...byPerson.values()], names);

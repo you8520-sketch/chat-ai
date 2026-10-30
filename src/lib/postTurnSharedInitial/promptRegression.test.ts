@@ -109,6 +109,33 @@ function assertStatusOnRegenUserBlock(
   );
 }
 
+describe("B51 relationship extraction contract", () => {
+  it("asks for an explicit handoff and does not treat an unaccepted offer as a promise", () => {
+    const system = buildPostTurnSharedInitialSystem(
+      dualInput({ mode: "relationship_only", includeEpisodic: false, includeSuggestions: false })
+    );
+    assert.match(system, /from→to: item/);
+    assert.match(system, /does not erase another person's same-named object/);
+    assert.match(system, /conditional offer the other party does not accept/);
+    assert.match(system, /Skip ordinary clothes, uniforms, and furniture/);
+    assert.doesNotMatch(system, /receiver's updated line/);
+  });
+
+  it("lets episodic keep an unaccepted offer and still withholds open promises", () => {
+    const system = buildPostTurnSharedInitialSystem(
+      dualInput({
+        mode: "relationship_only",
+        includeRelationship: false,
+        includeSuggestions: false,
+        includeEpisodic: true,
+      })
+    );
+    assert.match(system, /past proposal/);
+    assert.match(system, /open promise/);
+    assert.doesNotMatch(system, /promisesAdd/);
+  });
+});
+
 describe("Shared Initial prompt regression P1–P8", () => {
   it("P1 Status ON dual: no prompt conflict", () => {
     assertSharedEpisodicPromptClean(buildPostTurnSharedInitialSystem(dualInput()));
