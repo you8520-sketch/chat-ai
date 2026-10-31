@@ -41,10 +41,16 @@ export type MemoryInjection = {
   mediumTermText: string;
   /** [과거 기억] — archive_summary (프롬프트 identity/rules 아래 별도 주입) */
   archiveText: string;
+  /** B63 comparison-only: bounded recent turn detail projection. */
+  recentDetailText: string;
+  /** B63 comparison-only: old-summary search result with original-turn links. */
+  pastSearchText: string;
   pinnedChars: number;
   recentChars: number;
   mediumTermChars: number;
   archiveChars: number;
+  recentDetailChars: number;
+  pastSearchChars: number;
   archiveIncluded: boolean;
   usedChars: number;
   limit: number;

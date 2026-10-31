@@ -127,6 +127,8 @@ export function buildMediumTermMemoryBlock(opts: {
   chatId: number;
   blockCount: number;
   excludeTurnStartGte?: number;
+  excludeTurnEndGte?: number;
+  excludeCoveredRanges?: readonly { start: number; end: number }[];
   excludeAssistantMessageId?: number | null;
   /** Last completed turn a manual Global covers — Medium delivers only what comes after it. */
   manualBoundaryTurn?: number | null;
@@ -136,6 +138,8 @@ export function buildMediumTermMemoryBlock(opts: {
     resolveMediumTermBlockSources(
       listPromptInjectibleMemoryRecords(opts.chatId, {
         excludeTurnStartGte: opts.excludeTurnStartGte,
+        excludeTurnEndGte: opts.excludeTurnEndGte,
+        excludeCoveredRanges: opts.excludeCoveredRanges,
         excludeAssistantMessageId: opts.excludeAssistantMessageId,
       }),
       opts.manualBoundaryTurn ?? null
@@ -164,6 +168,8 @@ export function buildMediumTermMemoryBlockForProjection(opts: {
   chatId: number;
   blockCount: number;
   excludeTurnStartGte?: number;
+  excludeTurnEndGte?: number;
+  excludeCoveredRanges?: readonly { start: number; end: number }[];
   excludeAssistantMessageId?: number | null;
   projectionKind: GlobalProjectionKind;
   manualBoundaryTurn?: number | null;
@@ -175,6 +181,8 @@ export function buildMediumTermMemoryBlockForProjection(opts: {
     chatId: opts.chatId,
     blockCount: opts.blockCount,
     excludeTurnStartGte: opts.excludeTurnStartGte,
+    excludeTurnEndGte: opts.excludeTurnEndGte,
+    excludeCoveredRanges: opts.excludeCoveredRanges,
     excludeAssistantMessageId: opts.excludeAssistantMessageId,
     manualBoundaryTurn: opts.projectionKind === "manual_global" ? opts.manualBoundaryTurn : null,
   });

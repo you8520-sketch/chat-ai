@@ -34,6 +34,10 @@ export function buildMemoryContext(opts: {
   tier?: MemoryTier;
   memoryCapacity: number;
   mediumTermText?: string;
+  /** B63 comparison-only: bounded recent turn detail projection. */
+  recentDetailText?: string;
+  /** B63 comparison-only: old-summary search result with original-turn links. */
+  pastSearchText?: string;
   /** Gemini bulk — archive를 관련성 무관 항상 주입 */
   includeArchiveAlways?: boolean;
   /** DeepSeek — 요약본이 raw history와 겹칠 때 환각 방지 헤더 */
@@ -44,6 +48,8 @@ export function buildMemoryContext(opts: {
 
   const recent = opts.memory.recent_summary?.trim() ?? "";
   const mediumTerm = opts.mediumTermText?.trim() ?? "";
+  const recentDetail = opts.recentDetailText?.trim() ?? "";
+  const pastSearch = opts.pastSearchText?.trim() ?? "";
 
   let archive = "";
   let archiveIncluded = false;
@@ -84,10 +90,14 @@ ${recent}`
     text: parts.join("\n\n"),
     mediumTermText: mediumTerm,
     archiveText: archiveIncluded ? archive : "",
+    recentDetailText: recentDetail,
+    pastSearchText: pastSearch,
     pinnedChars: 0,
     recentChars: recent.length,
     mediumTermChars: mediumTerm.length,
     archiveChars: archive.length,
+    recentDetailChars: recentDetail.length,
+    pastSearchChars: pastSearch.length,
     archiveIncluded,
     usedChars,
     limit: budget.total,

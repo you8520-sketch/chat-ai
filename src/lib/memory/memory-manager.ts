@@ -42,6 +42,11 @@ import {
 import { runEpisodicSemanticIndexJob } from "./memory-episodic-semantic-jobs";
 import type { IndependentEpisodicOutcome } from "./memory-episodic-independent";
 import { buildMemoryContext, extractKeywords } from "./memory-injector";
+import {
+  buildRecentTurnDetailProjection,
+  searchPastTurnSummaries,
+} from "./memory-b63-comparison";
+import { countMemoryEligibleCompletedTurns } from "./memory-turn-loader";
 import { listNoncanonRecallRecords } from "./memory-turn-summary";
 import { scoreTextLexicalRelevance } from "@/lib/episodicMemoryFacts";
 import { MEMORY_RECORD_MAX_CHARS } from "./memory-constants";
@@ -259,7 +264,63 @@ export function buildHierarchicalMemoryPromptLayers(opts: {
   };
 }
 
+function resolveB63ComparisonRange(opts: {
+  chatId: number;
+  excludeSummaryTurnStartGte?: number;
+  comparisonMode?: boolean;
+}): { completedTurns: number; rawStart: number } | null {
+  if (opts.comparisonMode !== true) return null;
+  const completedTurns = countMemoryEligibleCompletedTurns(opts.chatId);
+  return {
+    completedTurns,
+    rawStart: opts.excludeSummaryTurnStartGte ?? completedTurns + 1,
+  };
+}
+
 /** Model picker / dry-run — read-only memory assembly (no DB writes, no background jobs). */
+function buildB63DetailProjection(opts: {
+  chatId: number;
+  excludeSummaryTurnStartGte?: number;
+  comparisonMode?: boolean;
+  comparisonDetailTurnCount?: number;
+}) {
+  const range = resolveB63ComparisonRange(opts);
+  if (!range) return null;
+  return buildRecentTurnDetailProjection({
+    chatId: opts.chatId,
+    rawStartTurn: range.rawStart,
+    detailTurnCount: opts.comparisonDetailTurnCount,
+  });
+}
+
+function buildB63PastSearch(
+  opts: {
+    chatId: number;
+    userMessage: string;
+    excludeSummaryTurnStartGte?: number;
+    comparisonMode?: boolean;
+    comparisonSceneText?: string;
+  },
+  detail: ReturnType<typeof buildRecentTurnDetailProjection> | null
+): string {
+  const range = resolveB63ComparisonRange(opts);
+  if (!range) return "";
+  const deliveredRanges =
+    detail?.blocks.map((block) => ({ start: block.turnStart, end: block.turnEnd })) ?? [];
+  const search = searchPastTurnSummaries({
+    chatId: opts.chatId,
+    query: opts.userMessage,
+    sceneText: opts.comparisonSceneText,
+    excludeRanges: [
+      { start: range.rawStart, end: Math.max(range.rawStart, range.completedTurns) },
+    ],
+    // Only records fully delivered by detail are removed from search. A record
+    // that straddles a delivered block and an omitted turn remains searchable.
+    excludeCoveredRanges: deliveredRanges,
+  });
+  return search.text;
+}
+
 export async function buildMemoryContextForPreview(opts: {
   chatId: number;
   tier: MemoryTier;
@@ -269,6 +330,10 @@ export async function buildMemoryContextForPreview(opts: {
   provider?: "gemini" | "openrouter" | "openai";
   excludeSummaryTurnStartGte?: number;
   pastEventSummaryDedupe?: boolean;
+  /** B63 comparison-only: add bounded recent detail + old-summary search. */
+  comparisonMode?: boolean;
+  comparisonDetailTurnCount?: number;
+  comparisonSceneText?: string;
 }): Promise<MemoryInjection> {
   if (!isMemoryFeatureEnabled()) {
     return emptyMemoryInjection(opts.tier);
@@ -276,9 +341,15 @@ export async function buildMemoryContextForPreview(opts: {
 
   const memory = getChatMemoryRow(opts.chatId);
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
+  const detail = buildB63DetailProjection(opts);
+  const comparisonRange = resolveB63ComparisonRange(opts);
+  const deliveredRanges =
+    detail?.blocks.map((block) => ({ start: block.turnStart, end: block.turnEnd })) ?? [];
+  const globalCutoff = comparisonRange ? comparisonRange.rawStart : opts.excludeSummaryTurnStartGte;
   const resolved = resolveGlobalCurrentMemory(opts.chatId, budget.lorebook, {
-    excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
-    storedRecentSummary: memory?.recent_summary,
+    excludeTurnStartGte: globalCutoff,
+    excludeCoveredRanges: deliveredRanges,
+    storedRecentSummary: detail ? "" : memory?.recent_summary,
   });
   const recentForPrompt = summaryTextForPromptInjection(
     opts.chatId,
@@ -295,10 +366,12 @@ export async function buildMemoryContextForPreview(opts: {
   const mediumTerm = buildMediumTermMemoryBlockForProjection({
     chatId: opts.chatId,
     blockCount: MEDIUM_TERM_BLOCK_COUNT,
-    excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+    excludeTurnStartGte: globalCutoff,
+    excludeCoveredRanges: deliveredRanges,
     projectionKind: resolved.projectionKind,
     manualBoundaryTurn: resolved.manualBoundaryTurn,
   });
+  const pastSearchText = buildB63PastSearch(opts, detail);
 
   return buildMemoryContext({
     memory: {
@@ -310,6 +383,8 @@ export async function buildMemoryContextForPreview(opts: {
     tier: opts.tier,
     memoryCapacity: opts.memoryCapacity,
     mediumTermText: [mediumTerm.text, buildNoncanonRecallBlock(opts)].filter(Boolean).join("\n\n"),
+    recentDetailText: detail?.text ?? "",
+    pastSearchText,
     includeArchiveAlways: shouldIncludeArchiveAlways(opts.modelId, opts.provider),
     pastEventSummaryDedupe: opts.pastEventSummaryDedupe === true,
   });
@@ -330,16 +405,26 @@ export async function buildMemoryContextForChat(opts: {
   excludeSummaryTurnStartGte?: number;
   /** DeepSeek — [과거 사건 요약본] + 중복 사건 단일 인지 문구 */
   pastEventSummaryDedupe?: boolean;
+  /** B63 comparison-only: add bounded recent detail + old-summary search. */
+  comparisonMode?: boolean;
+  comparisonDetailTurnCount?: number;
+  comparisonSceneText?: string;
 }): Promise<MemoryInjection> {
   if (!isMemoryFeatureEnabled()) {
     return emptyMemoryInjection(opts.tier);
   }
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
+  const detail = buildB63DetailProjection(opts);
+  const comparisonRange = resolveB63ComparisonRange(opts);
+  const deliveredRanges =
+    detail?.blocks.map((block) => ({ start: block.turnStart, end: block.turnEnd })) ?? [];
+  const globalCutoff = comparisonRange ? comparisonRange.rawStart : opts.excludeSummaryTurnStartGte;
 
   const resolved = resolveGlobalCurrentMemory(opts.chatId, budget.lorebook, {
-    excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
-    storedRecentSummary: memory.recent_summary,
+    excludeTurnStartGte: globalCutoff,
+    excludeCoveredRanges: deliveredRanges,
+    storedRecentSummary: detail ? "" : memory.recent_summary,
   });
   const archiveSummary = memory.archive_summary?.trim() ?? "";
   const recentForPrompt = summaryTextForPromptInjection(
@@ -353,7 +438,10 @@ export async function buildMemoryContextForChat(opts: {
       ? trimLorebookToBudgetSync(archiveSummary, budget.archive)
       : archiveSummary;
 
-  if (resolved.needsBackgroundCompact || archiveSummary.length > budget.archive) {
+  if (
+    opts.comparisonMode !== true &&
+    (resolved.needsBackgroundCompact || archiveSummary.length > budget.archive)
+  ) {
     scheduleBackgroundLorebookMaintenance({
       chatId: opts.chatId,
       userId: opts.userId,
@@ -363,6 +451,7 @@ export async function buildMemoryContextForChat(opts: {
       turnTrace: opts.turnTrace,
     });
   } else if (
+    opts.comparisonMode !== true &&
     resolved.projectionKind === "exact" &&
     resolved.text &&
     resolved.text !== memory.recent_summary?.trim()
@@ -376,10 +465,12 @@ export async function buildMemoryContextForChat(opts: {
   const mediumTerm = buildMediumTermMemoryBlockForProjection({
     chatId: opts.chatId,
     blockCount: MEDIUM_TERM_BLOCK_COUNT,
-    excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+    excludeTurnStartGte: globalCutoff,
+    excludeCoveredRanges: deliveredRanges,
     projectionKind: resolved.projectionKind,
     manualBoundaryTurn: resolved.manualBoundaryTurn,
   });
+  const pastSearchText = buildB63PastSearch(opts, detail);
 
   return buildMemoryContext({
     memory: {
@@ -391,6 +482,8 @@ export async function buildMemoryContextForChat(opts: {
     tier: opts.tier,
     memoryCapacity: opts.memoryCapacity,
     mediumTermText: [mediumTerm.text, buildNoncanonRecallBlock(opts)].filter(Boolean).join("\n\n"),
+    recentDetailText: detail?.text ?? "",
+    pastSearchText,
     includeArchiveAlways: shouldIncludeArchiveAlways(opts.modelId, opts.provider),
     pastEventSummaryDedupe: opts.pastEventSummaryDedupe === true,
   });

@@ -698,6 +698,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const sceneDirectiveBlock = input.sceneDirectiveBlock?.trim() ?? "";
   let memory = sanitizeRuntimePromptSource(input.longTermMemory);
   const mediumTermMemory = sanitizeRuntimePromptSource(input.mediumTermMemoryBlock);
+  const recentDetailMemory = sanitizeRuntimePromptSource(input.recentDetailMemoryBlock);
+  const pastSearchMemory = sanitizeRuntimePromptSource(input.pastSearchMemoryBlock);
   const memoryMeta = sanitizeRuntimePromptSource(input.memoryMeta);
 
   const pushMediumTermMemory = () => {
@@ -707,6 +709,18 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "[2z] Medium-term memory",
       "memory",
       mediumTermMemory,
+      "dynamic",
+      deepSeekXmlMode ? "ltm" : undefined
+    );
+  };
+
+  const pushRecentDetailMemory = () => {
+    if (!recentDetailMemory) return;
+    pushSection(
+      "recent-turn-detail-memory",
+      "[2z2] Recent turn detail",
+      "memory",
+      recentDetailMemory,
       "dynamic",
       deepSeekXmlMode ? "ltm" : undefined
     );
@@ -896,6 +910,18 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
+  const pushPastSearchMemory = () => {
+    if (!pastSearchMemory) return;
+    pushSection(
+      "past-summary-search-memory",
+      "[3a2] Past summary search",
+      "memory",
+      pastSearchMemory,
+      "dynamic",
+      deepSeekXmlMode ? "ltm" : undefined
+    );
+  };
+
   const pushTriggeredScenarioEvents = () => {
     if (!triggeredScenarioEventsBlock) return;
     pushSection(
@@ -1054,9 +1080,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     pushArchiveMemory();
     if (memoryFeatureOn) {
       pushMediumTermMemory();
+      pushRecentDetailMemory();
       pushCurrentMemory(false);
     }
     pushEpisodicMemory();
+    pushPastSearchMemory();
     pushTriggeredScenarioEvents();
     if (memoryFeatureOn) {
       pushRelationshipMeta();
@@ -1295,7 +1323,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
 
-  const historyBudget = resolveHistoryTokenBudget(input.modelId, compatibleProvider);
+  const historyBudget =
+    Number.isFinite(input.comparisonHistoryTokenBudget) &&
+    (input.comparisonHistoryTokenBudget ?? 0) > 0
+      ? Math.floor(input.comparisonHistoryTokenBudget!)
+      : resolveHistoryTokenBudget(input.modelId, compatibleProvider);
   const maxPayload = resolveMaxPayloadInputTokens(input.modelId);
   const currentUserForWire = frameCoerciveCncDirectorUserMessage(input.currentUserMessage, {
     nsfwEnabled: !!input.nsfw,
@@ -1492,6 +1524,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const requestedHistoryTurnFloor = Number.isFinite(input.historyMinTurnFloor)
     ? Math.max(0, Math.floor(input.historyMinTurnFloor!))
     : MIN_HISTORY_TURN_FLOOR;
+  const comparisonRawFloor =
+    Number.isFinite(input.comparisonRawExchanges) && (input.comparisonRawExchanges ?? 0) > 0
+      ? Math.floor(input.comparisonRawExchanges!)
+      : 0;
   const providerHistoryAbsoluteTurnFloor = Number.isFinite(
     input.providerHistoryAbsoluteTurnFloor
   )
@@ -1502,7 +1538,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       Number.isFinite(input.providerHistoryMinRealPlayableExchanges) &&
       (input.providerHistoryMinRealPlayableExchanges ?? 0) > 0
         ? Math.floor(input.providerHistoryMinRealPlayableExchanges!)
-        : requestedHistoryTurnFloor,
+        : Math.max(requestedHistoryTurnFloor, comparisonRawFloor),
     protectOpening: input.providerHistoryProtectOpening === true,
   };
   const useProviderHistoryTrim =
@@ -1521,6 +1557,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     : 0;
   const requestedSafetyTurnFloor = Math.max(
     requestedHistoryTurnFloor,
+    comparisonRawFloor,
     input.preserveAdultHandoffRawHistory ? adultRequiredTurnFloor : 0
   );
   let effectiveHistoryTurnFloor = requestedSafetyTurnFloor;

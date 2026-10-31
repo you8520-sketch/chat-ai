@@ -57,6 +57,14 @@ export type ContextBuildInput = {
   longTermMemory?: string | null;
   /** Medium-term sealed summary blocks outside RAW */
   mediumTermMemoryBlock?: string | null;
+  /** B63 comparison-only: bounded recent turn detail projection. */
+  recentDetailMemoryBlock?: string | null;
+  /** B63 comparison-only: old-summary search result with original-turn links. */
+  pastSearchMemoryBlock?: string | null;
+  /** B63 comparison-only: keep this many completed exchanges in final history. */
+  comparisonRawExchanges?: number;
+  /** B63 comparison-only: history token budget for the RAW6 arm. */
+  comparisonHistoryTokenBudget?: number;
   /** archive_summary — identity/rules 아래 별도 주입 */
   archiveMemory?: string | null;
   shortTermHistory: ChatMsg[];
