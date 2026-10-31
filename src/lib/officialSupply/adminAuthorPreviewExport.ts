@@ -19,6 +19,8 @@ export type AdminAuthorPreviewExport = {
   issues: { code: string; message: string }[];
   repairable: boolean;
   voiceRepairs: number;
+  /** Authoring mode (general / adult) the preview was generated in. */
+  adult: boolean;
   textLock: string;
   creatorComment?: string;
   manuscript: {
@@ -147,6 +149,7 @@ export function adminAuthorPreviewExportJson(preview: AdminAuthorPreviewExport):
       issues: preview.issues,
       repairable: preview.repairable,
       voiceRepairs: preview.voiceRepairs,
+      adult: preview.adult,
       textLock: preview.textLock,
       ...(creatorComment ? { creatorComment } : {}),
       manuscript: {

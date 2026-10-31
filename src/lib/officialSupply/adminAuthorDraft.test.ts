@@ -28,6 +28,7 @@ import {
   setAdminAuthorSaveDelayForTests,
   type AdminAuthorSelection,
 } from "@/lib/officialSupply/adminAuthorDraft";
+import { adminAuthorPreviewExportJson } from "@/lib/officialSupply/adminAuthorPreviewExport";
 import type { OfficialAuthorTransport } from "@/lib/officialSupply/author";
 import type { PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
 import type { OfficialCharacterBible, OfficialWorldBible } from "@/lib/officialSupply/bible";
@@ -1251,5 +1252,268 @@ describe("G5-3M-1 admin preview failure stage mapping", () => {
     const wire = JSON.stringify(preview);
     assert.equal(wire.includes("authorOnly"), false);
     assert.equal(wire.includes("lorebook"), false);
+  });
+});
+
+describe("G6-2A adult authoring mode", () => {
+  const generalSelection = { ...autoHorrorDry };
+
+  it("parses adult strictly, defaulting to general when absent", () => {
+    const base = {
+      genre: "공포/추리",
+      tone: "auto",
+      humor: "auto",
+      pacing: "auto",
+      nameWordplay: "auto",
+      gender: "female",
+      castIntent: "",
+    };
+    const missing = parseAdminAuthorSelection(base);
+    assert.equal(missing.ok, true);
+    if (missing.ok) assert.equal(missing.selection.adult, false);
+
+    const yes = parseAdminAuthorSelection({ ...base, adult: true });
+    assert.equal(yes.ok, true);
+    if (yes.ok) assert.equal(yes.selection.adult, true);
+
+    const no = parseAdminAuthorSelection({ ...base, adult: false });
+    assert.equal(no.ok, true);
+    if (no.ok) assert.equal(no.selection.adult, false);
+
+    for (const bad of ["true", 1, null]) {
+      assert.equal(parseAdminAuthorSelection({ ...base, adult: bad }).ok, false, String(bad));
+    }
+  });
+
+  it("refuses an adult request without creator permission before any provider call", async () => {
+    let calls = 0;
+    const transport: OfficialAuthorTransport = {
+      label: "never-called",
+      async completeJson() {
+        calls += 1;
+        throw new Error("provider must not be called");
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: { ...generalSelection, adult: true },
+      transport,
+    });
+    assert.equal(preview.ok, false);
+    if (!preview.ok) assert.match(preview.error, /권한/);
+    assert.equal(calls, 0);
+  });
+
+  it("checks the brief against the requested mode instead of rejecting adultCandidate", async () => {
+    const queue = [
+      "14-g5-horror-dry-world_bible.json",
+      "15-g5-horror-dry-world_bible.json",
+      "16-g5-horror-dry-world_bible.json",
+      "17-g5-horror-dry-world_bible.json",
+    ].map((file) => readJson<{ text: string }>(path.join(PROVIDER, file)).text);
+    const transport: OfficialAuthorTransport = {
+      label: "adult-mode-mismatch",
+      async completeJson(input) {
+        if (input.task === "character_experience") return fixtureExperienceCompletion();
+        const text = queue.shift();
+        if (!text) throw new Error("fixture transport exhausted");
+        return { text, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      adminUser: { id: ADMIN.id, email: "admin@example.com", is_adult: 1, is_admin: 1 } as never,
+      selection: { ...generalSelection, adult: true },
+      transport,
+    });
+    assert.equal(preview.ok, false);
+    const wire = JSON.stringify(preview);
+    assert.match(wire, /world_portfolio_adult|adultCandidate/);
+  });
+});
+
+
+/**
+ * Synthetic mode-only derivatives of committed provider responses.
+ * They are test data, not new provider completions or an RP-quality sample.
+ */
+describe("G6-2A-R1 full authoring-mode execution", () => {
+  const groundedTags = ["측량", "현장", "기록", "판정"];
+  const adultSection: NonNullable<OfficialCharacterBible["adultSection"]> = {
+    orientation: "성인 상대와 천천히 신뢰를 쌓으며 서로의 취향을 알아간다.",
+    hookSummary: "오래 대화한 뒤 서로의 거리 변화를 차분히 탐색한다.",
+    dialogueProfile: "suggestive",
+    consentModes: ["standard"],
+    tone: "친밀한 자리에서도 짧고 차분한 존댓말을 유지한다. 상대가 말을 마칠 때까지 기다린 뒤 자신의 바람을 구체적으로 전하며, 당황하면 시선을 잠깐 내리고 건조한 농담으로 숨을 고른다. 관계가 가까워질수록 질문보다 자신의 취향을 먼저 털어놓는 일이 늘어난다.",
+    preferenceKeywords: ["차분한 대화", "눈맞춤", "솔직한 표현", "느린 친밀감"],
+    boundaries: [],
+    consentBehavior: "상대의 답을 듣고 자신의 바람을 함께 이야기한다.",
+    scenarioExamples: [
+      "업무가 끝난 뒤 함께 보낼 시간을 제안하고 상대의 답을 기다린다.",
+      "휴일에 먼저 연락해 서로의 취향을 나누며 대화를 이어 간다.",
+    ],
+  };
+
+  function response(file: string): string {
+    return readJson<{ text: string }>(path.join(PROVIDER, file)).text;
+  }
+
+  function modeFixture(adult: boolean, brokenTags = false) {
+    // File 17 is the already accepted replacement brief. Using it as the
+    // first portfolio makes this a genuine no-replan fixture.
+    const portfolio = JSON.parse(response("17-g5-horror-dry-world_bible.json")) as {
+      portfolio: PortfolioBriefInput[];
+    };
+    for (const brief of portfolio.portfolio) brief.adultCandidate = adult;
+    const voice = JSON.parse(response("19-g5-horror-dry-character_bible_voice.json")) as {
+      nsfw: boolean;
+      speech: OfficialCharacterBible["speech"];
+      publicProfile: OfficialCharacterBible["publicProfile"];
+    };
+    // Reuse the committed speech-only repair rather than the pre-repair
+    // 131-character description in response 19.
+    const speechRepair = JSON.parse(response("21-g5-horror-dry-character_bible_voice.json")) as {
+      speech: OfficialCharacterBible["speech"];
+    };
+    voice.speech = speechRepair.speech;
+    voice.nsfw = adult;
+    voice.publicProfile.tags = brokenTags ? [...groundedTags, "꿩뿔별똥망토"] : [...groundedTags];
+    const bonds = JSON.parse(response("20-g5-horror-dry-character_bible_bonds.json")) as {
+      nsfw: boolean;
+      adultSection: OfficialCharacterBible["adultSection"];
+    };
+    bonds.nsfw = adult;
+    bonds.adultSection = adult ? structuredClone(adultSection) : null;
+    const queue = [
+      response("14-g5-horror-dry-world_bible.json"),
+      response("15-g5-horror-dry-world_bible.json"),
+      JSON.stringify(portfolio),
+      response("18-g5-horror-dry-character_bible_1.json"),
+      JSON.stringify(voice),
+      JSON.stringify(bonds),
+    ];
+    const calls: Array<{ task: string; user: string }> = [];
+    const transport: OfficialAuthorTransport = {
+      label: "synthetic-g6-mode-fixture",
+      async completeJson(input) {
+        calls.push({ task: input.task, user: input.user });
+        if (input.task === "character_experience") return fixtureExperienceCompletion();
+        const text = queue.shift();
+        assert.ok(text, "unexpected extra call: " + input.task);
+        return { text, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+      },
+    };
+    return { transport, calls, remaining: () => queue.length, repairedVoice: () => {
+      const repaired = structuredClone(voice);
+      repaired.publicProfile.tags = [...groundedTags];
+      return JSON.stringify(repaired);
+    } };
+  }
+
+  async function assertSavedMode(previewId: string, adult: boolean) {
+    assertIsolatedTestDatabaseActive();
+    const saved = await saveHeldAdminAuthorPreview(ADMIN, previewId);
+    assert.equal(saved.ok, true, JSON.stringify(saved));
+    if (!saved.ok) throw new Error("fixture save failed");
+    const db = getDb();
+    const row = db.prepare("SELECT * FROM characters WHERE id=?").get(saved.characterId) as Record<string, unknown>;
+    assert.equal(row.creator_id, ADMIN.id);
+    assert.equal(row.nsfw, adult ? 1 : 0);
+    assert.equal(row.visibility, "private");
+    assert.equal(row.official, 0);
+    assert.equal(row.assets, "[]");
+    assert.equal(row.participant_min_age, 32);
+    if (adult) {
+      assert.equal(row.adult_dialogue_profile, adultSection.dialogueProfile);
+      assert.equal(row.adult_status, "confirmed");
+      assert.deepEqual(JSON.parse(String(row.adult_consent_modes_json)), adultSection.consentModes);
+      assert.ok(String(row.system_prompt).includes(adultSection.orientation));
+      assert.ok(String(row.system_prompt).includes(adultSection.hookSummary));
+      assert.ok(String(row.system_prompt).includes(adultSection.tone));
+      for (const keyword of adultSection.preferenceKeywords) {
+        assert.ok(String(row.system_prompt).includes(keyword), keyword);
+      }
+    } else {
+      assert.equal(String(row.system_prompt).includes(adultSection.hookSummary), false);
+    }
+    const beforeRepeat = (db.prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n;
+    const repeated = await saveHeldAdminAuthorPreview(ADMIN, previewId);
+    assert.equal(repeated.ok, true);
+    if (!repeated.ok) throw new Error("idempotent save failed");
+    assert.equal(repeated.characterId, saved.characterId);
+    assert.equal(repeated.alreadySaved, true);
+    assert.equal((db.prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n, beforeRepeat);
+  }
+
+  for (const adult of [false, true]) {
+    it((adult ? "adult" : "general") + " preview saves privately with its mode and no replan", async () => {
+      clearAdminAuthorPreviewsForTests();
+      const fixture = modeFixture(adult);
+      const preview = await previewAdminOfficialCharacter({
+        adminUserId: ADMIN.id,
+        adminUser: ADMIN,
+        selection: { ...autoHorrorDry, adult },
+        transport: fixture.transport,
+      });
+      assert.equal(preview.ok, true, JSON.stringify(preview));
+      if (!preview.ok) throw new Error("mode preview failed");
+      assert.equal(preview.adult, adult);
+      assert.equal(preview.qaOk, true, JSON.stringify(preview.issues));
+      assert.deepEqual(fixture.calls.map((call) => call.task), [
+        "character_experience", "world_bible", "world_bible", "world_bible",
+        "character_bible_1", "character_bible_voice", "character_bible_bonds",
+      ]);
+      assert.equal(fixture.remaining(), 0);
+      assert.ok(fixture.calls[3]!.user.includes("성인 후보 수: " + (adult ? 1 : 0) + "명"));
+      for (const call of fixture.calls.filter((call) =>
+        call.task === "character_bible_1" || call.task === "character_bible_voice" || call.task === "character_bible_bonds"
+      )) {
+        assert.ok(call.user.includes("성인 후보: " + (adult ? "예" : "아니오")), call.task);
+      }
+      assert.equal((JSON.parse(adminAuthorPreviewExportJson(preview)) as { adult: boolean }).adult, adult);
+      await assertSavedMode(preview.previewId, adult);
+    });
+  }
+
+  it("retains adult canon through a real tag repair and the subsequent save", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const fixture = modeFixture(true, true);
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      adminUser: ADMIN,
+      selection: { ...autoHorrorDry, adult: true },
+      transport: fixture.transport,
+    });
+    assert.equal(preview.ok, true, JSON.stringify(preview));
+    if (!preview.ok) throw new Error("repair preview failed");
+    assert.equal(preview.adult, true);
+    assert.equal(preview.qaOk, false);
+    assert.equal(preview.repairable, true, JSON.stringify(preview.issues));
+    assert.deepEqual([...new Set(preview.issues.map((issue) => issue.code))], ["tag_bible_mismatch"]);
+    const repairCalls: Array<{ task: string; user: string }> = [];
+    const repaired = await repairHeldAdminAuthorPreview({
+      adminUserId: ADMIN.id,
+      previewId: preview.previewId,
+      transport: {
+        label: "synthetic-g6-adult-tag-repair",
+        async completeJson(input) {
+          repairCalls.push({ task: input.task, user: input.user });
+          return { text: fixture.repairedVoice(), model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+        },
+      },
+    });
+    assert.equal(repaired.ok, true, JSON.stringify(repaired));
+    if (!repaired.ok) throw new Error("adult repair failed");
+    assert.equal(repaired.adult, true);
+    assert.equal(repaired.qaOk, true, JSON.stringify(repaired.issues));
+    assert.equal(repaired.voiceRepairs, 1);
+    assert.equal(repairCalls.length, 1);
+    assert.equal(repairCalls[0]!.task, "character_bible_voice");
+    assert.ok(repairCalls[0]!.user.includes("성인 후보: 예"));
+    assert.equal(repaired.manuscript.greeting, preview.manuscript.greeting);
+    assert.equal(repaired.manuscript.description, preview.manuscript.description);
+    assert.deepEqual(repaired.manuscript.tags, groundedTags);
+    assert.equal((JSON.parse(adminAuthorPreviewExportJson(repaired)) as { adult: boolean }).adult, true);
+    await assertSavedMode(repaired.previewId, true);
   });
 });

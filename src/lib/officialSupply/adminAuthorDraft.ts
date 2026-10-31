@@ -6,6 +6,7 @@ import path from "node:path";
 
 import type { CharacterGenre } from "@/lib/characterGenres";
 import { isCharacterGenre } from "@/lib/characterGenres";
+import { canUseCreatorTools, type AdultAccessUser } from "@/lib/adultVerification";
 import type { CharacterGender } from "@/lib/characterGender";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { createCharacterFromForm, type SessionUser } from "@/lib/characterFormSave";
@@ -108,6 +109,8 @@ export type AdminAuthorSelection = {
   nameWordplay: OfficialAuthoringAxisChoice<OfficialNameWordplay>;
   gender: CharacterGender;
   castIntent: string;
+  /** Admin authoring mode. Absent means the existing general (non-adult) behaviour. */
+  adult?: boolean;
 };
 
 export type AdminAuthorIssue = { code: string; message: string };
@@ -139,6 +142,8 @@ export type AdminAuthorPreviewOk = {
   issues: AdminAuthorIssue[];
   repairable: boolean;
   voiceRepairs: number;
+  /** Authoring mode this preview was generated in. */
+  adult: boolean;
   textLock: string;
   /** Read-only play guide already stored on the held draft. Absent when the manuscript has none. */
   creatorComment?: string;
@@ -216,7 +221,22 @@ export function parseAdminAuthorSelection(body: unknown): { ok: true; selection:
   if (!tone || !humor || !pacing || !nameWordplay || !gender) return { ok: false, error: "문체·유머·전개·작명·성별 값이 올바르지 않습니다." };
   const castIntent = typeof raw.castIntent === "string" ? raw.castIntent.trim() : "";
   if (castIntent.length > MAX_CAST_INTENT_CHARS) return { ok: false, error: "캐스트 의도가 너무 깁니다." };
-  return { ok: true, selection: { genre, tone, humor, pacing, nameWordplay, gender, castIntent } };
+  if (raw.adult !== undefined && typeof raw.adult !== "boolean") {
+    return { ok: false, error: "일반/성인 선택 값이 올바르지 않습니다." };
+  }
+  return {
+    ok: true,
+    selection: {
+      genre,
+      tone,
+      humor,
+      pacing,
+      nameWordplay,
+      gender,
+      castIntent,
+      adult: raw.adult === true,
+    },
+  };
 }
 
 /**
@@ -280,7 +300,8 @@ function briefGate(
   kept: PortfolioBriefInput[],
   plan: OfficialAuthoringPlan,
   snapshot: ResearchSnapshot,
-  gender: CharacterGender
+  gender: CharacterGender,
+  expectedAdult: boolean
 ): string[] {
   const errors = evaluateBriefCastFit({
     fresh: [brief],
@@ -291,7 +312,9 @@ function briefGate(
   }).errors;
   errors.push(...briefRelationPremiseErrors(brief));
   if (brief.age < 19) errors.push(`age ${brief.age} < 19`);
-  if (brief.adultCandidate) errors.push("adultCandidate must stay false");
+  if (brief.adultCandidate !== expectedAdult) {
+    errors.push(`adultCandidate ${brief.adultCandidate} != requested ${expectedAdult}`);
+  }
   if (brief.gender !== gender) errors.push(`gender ${brief.gender} != ${gender}`);
   errors.push(
     ...evaluateInternalRegionConsistency(JSON.stringify(brief), internalWorldRegions(world.regions)).errors.map((e) => `region ${e.code}`)
@@ -333,6 +356,8 @@ export function assessAdminAuthorManuscript(input: {
   bible: OfficialCharacterBible;
   world: OfficialWorldBible;
   brief: PortfolioBriefInput;
+  /** Authoring mode the draft was produced in. */
+  adult?: boolean;
 }): QaIssue[] {
   const hook = {
     archetype: input.brief.archetype,
@@ -341,7 +366,7 @@ export function assessAdminAuthorManuscript(input: {
   };
   const genre = input.draft.genres.find((item) => isCharacterGenre(item));
   return [
-    ...validatePilotBible(input.bible, { adultExpected: false }).errors,
+    ...validatePilotBible(input.bible, { adultExpected: input.adult === true }).errors,
     ...evaluateDiscoveryTags(
       { tags: input.bible.publicProfile.tags, bible: input.bible, hook, ...(genre ? { genre } : {}) },
       MARKET_POLICY
@@ -448,6 +473,7 @@ function publicPreview(hold: Hold): AdminAuthorPreviewOk {
     issues: hold.issues.map((issue) => ({ code: issue.code, message: issue.message })),
     repairable,
     voiceRepairs: hold.voiceRepairs,
+    adult: hold.brief.adultCandidate === true,
     textLock: computeTextLockHash(hold.draft),
     ...(creatorComment ? { creatorComment } : {}),
     manuscript: {
@@ -492,7 +518,7 @@ function holdManuscript(input: {
       rpHook: input.brief.rpHook,
     },
   });
-  const issues = assessAdminAuthorManuscript({ draft, bible: input.bible, world: input.world, brief: input.brief });
+  const issues = assessAdminAuthorManuscript({ draft, bible: input.bible, world: input.world, brief: input.brief, adult: input.brief.adultCandidate });
   const hold: Hold = {
     id: randomBytes(16).toString("hex"),
     adminUserId: input.adminUserId,
@@ -554,12 +580,18 @@ function transportFor(inner: OfficialAuthorTransport | undefined, budget: Offici
 export async function previewAdminOfficialCharacter(input: {
   adminUserId: number;
   selection: AdminAuthorSelection;
+  /** Server-side session user; required to authorise an adult request. */
+  adminUser?: AdultAccessUser | null;
   transport?: OfficialAuthorTransport;
 }): Promise<AdminAuthorPreviewResult> {
   const direction = resolveAdminAuthoringDirection(input.selection);
   const basePlan = resolveOfficialAuthoringPlan(direction);
   const castIntent = input.selection.castIntent || recommendOfficialCastIntent(input.selection.genre);
   const gender = input.selection.gender;
+  const adult = input.selection.adult === true;
+  if (adult && !canUseCreatorTools(input.adminUser)) {
+    return { ok: false, error: "성인 캐릭터 제작 권한이 없습니다." } as AdminAuthorPreviewResult;
+  }
   const budget = new OfficialAuthorCallBudget(ADMIN_AUTHOR_CALL_CAP);
   const transport = transportFor(input.transport, budget);
   const modelId = resolveOfficialAuthorModelId();
@@ -601,7 +633,7 @@ export async function previewAdminOfficialCharacter(input: {
         styleKey: "admin_draft_v1",
         market,
         slots: 1,
-        adultCandidates: 0,
+        adultCandidates: adult ? 1 : 0,
         genderMix,
         slotGenders: [gender],
         castIntent,
@@ -615,7 +647,7 @@ export async function previewAdminOfficialCharacter(input: {
     projectOfficialSharedWorld(world);
     let brief = world.portfolio[0];
     if (!brief) return { ok: false, error: "포트폴리오 브리프가 없습니다." };
-    let gateErrors = briefGate(brief, world, kept, plan, snapshot, gender);
+    let gateErrors = briefGate(brief, world, kept, plan, snapshot, gender, adult);
     if (gateErrors.length) {
       const replanned = await generateOfficialPortfolioReplacement({
         transport,
@@ -628,7 +660,7 @@ export async function previewAdminOfficialCharacter(input: {
           market,
           castIntent,
           keptSiblings: kept.map(describeCastForPlanning),
-          slots: [{ slot: 1, gender, adultCandidate: false, direction: "브리프 게이트를 통과하는 한 명만 다시 계획한다." }],
+          slots: [{ slot: 1, gender, adultCandidate: adult, direction: "브리프 게이트를 통과하는 한 명만 다시 계획한다." }],
           feedback: gateErrors.join("; "),
           authoring: plan,
           ...(experience ? { experience } : {}),
@@ -636,7 +668,7 @@ export async function previewAdminOfficialCharacter(input: {
       });
       brief = replanned.briefs[0]!;
       world = { ...world, portfolio: [brief] };
-      gateErrors = briefGate(brief, world, kept, plan, snapshot, gender);
+      gateErrors = briefGate(brief, world, kept, plan, snapshot, gender, adult);
       if (gateErrors.length) {
         return { ok: false, error: "브리프 검수를 통과하지 못했습니다.", issues: gateErrors.map((message) => ({ code: "brief_gate", message })) };
       }
@@ -656,7 +688,7 @@ export async function previewAdminOfficialCharacter(input: {
         name: brief.name,
         age: brief.age,
         gender: brief.gender,
-        adultCandidate: false,
+        adultCandidate: adult,
         speechDirection: brief.speechDirection,
         npcDemand: "이야기에 반복 역할이 실제로 필요할 때만 1~2명. 필요 없으면 0명([]).",
         marketFit: brief.marketFit,
@@ -667,7 +699,7 @@ export async function previewAdminOfficialCharacter(input: {
         name: brief.name,
         age: brief.age,
         rpHook: brief.rpHook,
-        adultCandidate: false,
+        adultCandidate: adult,
         castList: [],
         userRelation: brief.userRelation,
         ...(experience ? { experience } : {}),
@@ -738,7 +770,7 @@ export async function repairHeldAdminAuthorPreview(input: {
             name: current.brief.name,
             age: current.brief.age,
             gender: current.brief.gender,
-            adultCandidate: false,
+            adultCandidate: current.brief.adultCandidate,
             speechDirection: current.brief.speechDirection,
             npcDemand: "기존 NPC를 유지한다(새로 만들지 않는다).",
             marketFit: current.brief.marketFit,

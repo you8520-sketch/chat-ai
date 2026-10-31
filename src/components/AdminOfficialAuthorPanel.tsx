@@ -106,6 +106,7 @@ export default function AdminOfficialAuthorPanel({
   const [nameWordplay, setNameWordplay] = useState("auto");
   const [gender, setGender] = useState<CharacterGender>("female");
   const [castIntent, setCastIntent] = useState("");
+  const [adult, setAdult] = useState(false);
   const [busy, setBusy] = useState<"preview" | "repair" | "save" | null>(null);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -156,6 +157,7 @@ export default function AdminOfficialAuthorPanel({
       nameWordplay,
       gender,
       castIntent,
+      adult,
     });
     setBusy(null);
     if (requestSeq !== previewRequestSeq.current) return;
@@ -176,6 +178,7 @@ export default function AdminOfficialAuthorPanel({
         qaOk: false,
         repairable: false,
         voiceRepairs: 0,
+        adult,
         textLock: "",
         viewOnly: Boolean(rejected),
         creatorComment: rejected?.comment ?? "",
@@ -319,6 +322,14 @@ export default function AdminOfficialAuthorPanel({
           onChange={(event) => setCastIntent(event.target.value)}
         />
       </label>
+      <label className="mt-3 flex items-center gap-2 text-sm text-zinc-300">
+        <input
+          type="checkbox"
+          checked={adult}
+          onChange={(event) => setAdult(event.target.checked)}
+        />
+        성인 캐릭터로 제작 (제작 권한 필요)
+      </label>
       <div className="mt-4 flex flex-col gap-2 sm:flex-row">
         <button type="button" className={primaryButton} disabled={busy != null} onClick={() => void generate()}>
           {busy === "preview" ? "생성 중…" : "원고 생성"}
@@ -346,7 +357,7 @@ export default function AdminOfficialAuthorPanel({
         <div className="mt-4 space-y-2 text-sm text-zinc-200" data-testid="admin-author-preview">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p data-testid="admin-author-qa">
-              검수 {preview.qaOk ? "통과" : "실패"}
+              {preview.adult ? "성인" : "일반"} · 검수 {preview.qaOk ? "통과" : "실패"}
               {preview.textLock ? ` · Text Lock ${preview.textLock.slice(0, 12)}` : ""}
               {preview.voiceRepairs ? ` · 선택 보정 ${preview.voiceRepairs}회` : ""}
             </p>

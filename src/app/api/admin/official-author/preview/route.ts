@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   }
   const parsed = parseAdminAuthorSelection(body);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-  const preview = await previewAdminOfficialCharacter({ adminUserId: admin.id, selection: parsed.selection });
+  const preview = await previewAdminOfficialCharacter({ adminUserId: admin.id, adminUser: admin, selection: parsed.selection });
   if (!preview.ok) return NextResponse.json(preview, { status: 422 });
   return NextResponse.json(preview);
 }

@@ -181,3 +181,40 @@ test("passing fixture copy control at 390px", async ({ page }) => {
     await page.screenshot({ path: path.join(evidenceDir, "after-390.png") });
   }
 });
+
+test("carries the adult mode to the preview and shows it", async ({ page }) => {
+  test.setTimeout(120_000);
+  await openCreate(page, 1440);
+  let sent: Record<string, unknown> | null = null;
+  await page.route("**/api/admin/official-author/preview", async (route) => {
+    sent = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ...fixturePreview({ previewId: "adult-fixture", qaOk: true, draft: park }),
+        adult: true,
+      }),
+    });
+  });
+  const general = await page.locator('[data-testid="admin-official-author"]').screenshot();
+  if (evidenceDir) {
+    fs.mkdirSync(evidenceDir, { recursive: true });
+    await page.locator('[data-testid="admin-official-author"]').screenshot({
+      path: path.join(evidenceDir, "mode-before-general-1440.png"),
+    });
+  }
+  await page.getByLabel(/성인 캐릭터로 제작/).check();
+  if (evidenceDir) {
+    await page.locator('[data-testid="admin-official-author"]').screenshot({
+      path: path.join(evidenceDir, "mode-adult-selected-1440.png"),
+    });
+  }
+  await page.getByRole("button", { name: "원고 생성", exact: true }).click();
+  await expect(page.getByTestId("admin-author-qa")).toContainText("성인");
+  expect(sent?.adult).toBe(true);
+  if (evidenceDir) {
+    await page.screenshot({ path: path.join(evidenceDir, "mode-adult-preview-1440.png") });
+  }
+  expect(general.length).toBeGreaterThan(0);
+});
