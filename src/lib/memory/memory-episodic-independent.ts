@@ -20,6 +20,10 @@ import {
 } from "@/lib/providerCostLedger";
 import { runPostTurnRelationshipOnlyInitial } from "@/lib/postTurnSharedInitial/run";
 import { POST_TURN_EPISODIC_REQUEST_KIND } from "@/lib/postTurnSharedInitial/types";
+import {
+  hasArtifactLifecycleCandidate,
+  mergeArtifactRolesIntoEpisodic,
+} from "@/lib/postTurnSharedInitial/artifactRoles";
 import type { StatusWidgetExtractCaller } from "@/lib/statusWidget/extract";
 import type { EpisodicCorrectionCandidate } from "./memory-episodic-correction";
 import type { EpisodicSectionParse } from "./memory-episodic-shared";
@@ -120,6 +124,7 @@ export async function startIndependentEpisodicExtraction(
       return { status: "rejected", reason: "duplicate_attempt" };
     }
 
+    const includeArtifactRoles = hasArtifactLifecycleCandidate(input.assistantProse);
     const run = await runPostTurnRelationshipOnlyInitial(
       {
         charName: input.charName,
@@ -131,6 +136,7 @@ export async function startIndependentEpisodicExtraction(
         includeSuggestions: false,
         includeRelationship: false,
         includeEpisodic: true,
+        includeArtifactRoles,
         previousAssistantMessage: null,
         activePromises: [],
         episodicCorrectionCandidates: input.correctionCandidates,
@@ -147,9 +153,17 @@ export async function startIndependentEpisodicExtraction(
       })
     );
     if (!run.attempted) return { status: "rejected", reason: "internal_error" };
+    const episodic = run.transportOk ? (run.parsed?.episodic ?? null) : null;
     return {
       status: "extracted",
-      episodic: run.transportOk ? (run.parsed?.episodic ?? null) : null,
+      episodic: run.transportOk
+        ? mergeArtifactRolesIntoEpisodic(
+            episodic,
+            run.parsed?.artifactRoles,
+            input.assistantProse,
+            [input.charName, input.personaName]
+          )
+        : null,
       boundary,
     };
   } catch (e) {

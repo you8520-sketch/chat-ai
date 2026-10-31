@@ -72,6 +72,41 @@ function buildSuggestedRepliesSchema(): Record<string, unknown> {
   };
 }
 
+function buildArtifactRolesSchema(): Record<string, unknown> {
+  return {
+    type: "array",
+    maxItems: 5,
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["role", "actor", "actor_key", "item", "item_key", "quote", "same_object"],
+      properties: {
+        role: {
+          type: "string",
+          enum: ["created", "presented", "took", "wore", "later_wore"],
+        },
+        actor: { type: "string" },
+        actor_key: {
+          type: "string",
+          pattern: "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+          maxLength: 64,
+        },
+        item: { type: "string" },
+        item_key: {
+          type: "string",
+          pattern: "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$",
+          maxLength: 64,
+        },
+        quote: { type: "string", minLength: 6 },
+        same_object: {
+          type: "string",
+          enum: ["confirmed", "unconfirmed", "not_applicable"],
+        },
+      },
+    },
+  };
+}
+
 function buildRelationshipSchema(): Record<string, unknown> {
   return {
     type: "object",
@@ -111,6 +146,10 @@ export function buildPostTurnSharedInitialJsonSchema(
   if (input.includeRelationship) {
     required.push("relationship");
     properties.relationship = buildRelationshipSchema();
+  }
+  if (input.includeArtifactRoles) {
+    required.push("artifactRoles");
+    properties.artifactRoles = buildArtifactRolesSchema();
   }
   if (input.includeSuggestions) {
     required.push("suggestedReplies");

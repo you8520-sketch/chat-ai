@@ -100,6 +100,8 @@ export function sanitizeEpisodicExtractedFacts(
     correctionHandles?: ReadonlyMap<string, number>;
     /** Already-resolved facts handed to the save path keep their server-resolved target. */
     preserveCorrectionTarget?: boolean;
+    /** Per-turn fact cap override (artifact role chain uses 5; default 3). */
+    maxFacts?: number;
   } = {}
 ): EpisodicExtractedFact[] {
   if (!Array.isArray(raw)) return [];
@@ -155,7 +157,7 @@ export function sanitizeEpisodicExtractedFacts(
       ...(evidenceClaim ? { evidence: evidenceClaim } : {}),
       ...(correctionTarget != null ? { correction_target_fact_id: correctionTarget } : {}),
     });
-    if (out.length >= 3) break;
+    if (out.length >= (opts.maxFacts ?? 3)) break;
   }
 
   return out;

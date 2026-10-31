@@ -551,6 +551,7 @@ export async function scheduleMemoryUpdate(opts: {
           facts: [],
         },
         isRegeneration: isRegenerate,
+        maxFacts: episodicParse?.factLimit,
         requestId: generationScope?.generationRequestId ?? opts.turnTrace?.turnRequestId ?? null,
         generationSequence: generationScope?.generationSequence,
         generationScope,

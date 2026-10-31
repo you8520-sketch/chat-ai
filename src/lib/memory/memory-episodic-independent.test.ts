@@ -929,3 +929,111 @@ describe("B35 — attribute naming must not change whether the same event is sto
     assert.equal(factRows(turn.chatId).length, 0);
   });
 });
+
+
+describe("B62 artifact role section", () => {
+  it("requests the role section for an artifact lifecycle and merges it into episodic", async () => {
+    const turn = seedTurn();
+    const provider = fakeProvider(() =>
+      JSON.stringify({
+        artifactRoles: [
+          {
+            role: "created",
+            actor: "오스카",
+            actor_key: "oscar",
+            item: "은빛 반지",
+            item_key: "silver_ring",
+            quote: "은빛 반지를 만들었다.",
+            same_object: "not_applicable",
+          },
+        ],
+        episodic: { extracted_facts: [] },
+      })
+    );
+    const outcome = await extraction(turn, provider, {
+      assistantProse: "오스카는 수류탄 안전핀으로 은빛 반지를 만들었다.",
+    });
+    assert.equal(outcome.status, "extracted");
+    assert.match(provider.calls[0]?.system ?? "", /ARTIFACT ROLES section/);
+    assert.equal(outcome.episodic?.factLimit, 7);
+    assert.equal(outcome.episodic?.facts[0]?.attribute, "created_item");
+  });
+
+  it("keeps an important proposal next to the roles and drops unsupported acceptance", async () => {
+    const turn = seedTurn();
+    const prose = [
+      "오스카는 수류탄 안전핀으로 은빛 반지를 만들었다.",
+      "제이는 그 반지를 받아 손가락에 끼웠다.",
+      "제이는 반지를 손가락에 끼웠다.",
+    ].join(" ");
+    const provider = fakeProvider(() =>
+      JSON.stringify({
+        artifactRoles: [
+          {
+            role: "created",
+            actor: "오스카",
+            actor_key: "oscar",
+            item: "은빛 반지",
+            item_key: "silver_ring",
+            quote: "은빛 반지를 만들었다.",
+            same_object: "not_applicable",
+          },
+          {
+            role: "wore",
+            actor: "제이",
+            actor_key: "jay",
+            item: "은빛 반지",
+            item_key: "silver_ring",
+            quote: "제이는 그 반지를 받아 손가락에 끼웠다.",
+            same_object: "unconfirmed",
+          },
+        ],
+        episodic: {
+          extracted_facts: [
+            {
+              category: "character",
+              subject: "oscar",
+              attribute: "proposal_target",
+              value: "jay",
+              importance: "important",
+              fact_text: "오스카는 제이에게 공개 프러포즈를 했다.",
+              evidence_type: "explicit_scene_event",
+              evidence: { source_role: "assistant", source_quote: "Will you marry me?" },
+            },
+            {
+              category: "relationship",
+              subject: "jay_oscar",
+              attribute: "proposal_outcome",
+              value: "accepted",
+              importance: "important",
+              fact_text: "제이는 오스카의 프러포즈를 수락했다.",
+              evidence_type: "explicit_scene_event",
+              evidence: {
+                source_role: "assistant",
+                source_quote: "제이는 반지를 손가락에 끼웠다.",
+              },
+            },
+          ],
+        },
+      })
+    );
+    const outcome = await extraction(turn, provider, { assistantProse: prose });
+    assert.equal(outcome.status, "extracted");
+    assert.equal(outcome.episodic?.factLimit, 7);
+    assert.deepEqual(
+      outcome.episodic?.facts.map((fact) => fact.attribute),
+      ["created_item", "wearing", "proposal_target"]
+    );
+  });
+
+  it("does not request the role section without an artifact lifecycle cue", async () => {
+    const turn = seedTurn();
+    const provider = fakeProvider(() => episodicJson([]));
+    const outcome = await extraction(turn, provider, {
+      assistantProse: "오스카는 조용히 앉아 있었다.",
+    });
+    assert.equal(outcome.status, "extracted");
+    assert.doesNotMatch(provider.calls[0]?.system ?? "", /ARTIFACT ROLES section/);
+    assert.equal(outcome.episodic?.factLimit, undefined);
+  });
+});

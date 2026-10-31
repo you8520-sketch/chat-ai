@@ -29,6 +29,18 @@ const SHARED_RELATIONSHIP_OUTPUT_RULES = `RELATIONSHIP section — possessions a
 Return these arrays; empty arrays are correct when this turn has no possession change and no explicit promise.
 ${SHARED_RELATIONSHIP_FACT_RULES}`;
 
+const SHARED_ARTIFACT_ROLES_OUTPUT_RULES = `ARTIFACT ROLES section — historical artifact role chain from THIS TURN's assistant prose only.
+Return artifactRoles: [] when no completed artifact lifecycle is present.
+Each entry: { "role": "created|presented|took|wore|later_wore", "actor": "display name", "actor_key": "snake_case", "item": "short item name", "item_key": "snake_case", "quote": "verbatim assistant span containing the role action", "same_object": "confirmed|unconfirmed|not_applicable" }.
+- created = made/forged; presented = showed/offered; took = took/received; wore = put on; later_wore = wore in a later scene within this same turn.
+- Return every role that actually occurs, in created → presented → took → wore → later_wore order. Do not omit a role because its quote uses a pronoun or because the item is revealed in the adjacent sentence.
+- actor/item are the current scene's names; actor_key/item_key are stable snake_case ids.
+- quote must be copied verbatim from the current assistant prose and itself contain the role action. A box opening counts as presentation only when the item itself is revealed in the same or the adjacent sentence; a wearing quote is not proof of accepting a proposal. Never quote the user, a previous turn, a dream, an OOC block, a hypothetical, or an unaccepted offer.
+- Do not record current ownership; the RELATIONSHIP section owns current possession.
+- Do not put the surrounding proposal/ceremony in this section.
+- The episodic section should still record the turn's other consequential event (for example a public proposal, an explicitly quoted acceptance, or a promise) with a quote that states that event. For a proposal, quote the proposal line itself, not a venue or mood description. Do not duplicate the artifact role chain there; those roles are already listed here.
+- same_object = confirmed only if the prose explicitly says the items are the same physical object; unconfirmed when same-named items are not explicitly identified; not_applicable for a single scene.`;
+
 const SHARED_RELATIONSHIP_REGEN_RULES = `RELATIONSHIP section — the assistant reply for this turn was REGENERATED.
 Compare the rejected assistant draft and the new canonical assistant in the user block.
 items, promisesAdd, and promisesRemove record only what the NEW canonical reply introduces. itemsRemove also drops transfers that existed only in the rejected draft.
@@ -80,6 +92,7 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
           : SHARED_RELATIONSHIP_OUTPUT_RULES
     );
   }
+  if (input.includeArtifactRoles) rules.push(SHARED_ARTIFACT_ROLES_OUTPUT_RULES);
   if (input.includeSuggestions) rules.push(SHARED_SUGGESTIONS_OUTPUT_RULES);
   if (input.includeEpisodic) {
     rules.push(
@@ -169,6 +182,7 @@ export function buildPostTurnSharedInitialSystem(input: PostTurnSharedInitialInp
     widgetSemantic ? "status widget values" : "",
     input.includeSuggestions ? "suggested user reply options" : "",
     input.includeRelationship ? "durable relationship memory" : "",
+    input.includeArtifactRoles ? "historical artifact role events" : "",
     input.includeEpisodic ? "durable episodic memory facts" : "",
   ]
     .filter(Boolean)
