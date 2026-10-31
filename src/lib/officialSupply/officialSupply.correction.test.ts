@@ -363,6 +363,15 @@ describe("author quality contract (prompt == QA)", () => {
     assert.ok(qa.errors.some((e) => e.code === "bible_speech_coverage" && /angryStyle/.test(e.message)));
   });
 
+  it("empty required voice descriptions remain errors independently of length recommendations", () => {
+    for (const empty of ["", "   "]) {
+      const qa = evaluateAuthorQualityContract(voiceBible({ speech: { description: empty }, pitch: empty }));
+      assert.ok(qa.errors.some((issue) => issue.code === "bible_speech_missing"));
+      assert.ok(qa.errors.some((issue) => issue.code === "bible_pitch_missing"));
+      assert.equal(qa.errors.some((issue) => issue.code.endsWith("_band")), false);
+    }
+  });
+
   it("public pitch needs the recommended length as a warning and a user-facing promise", () => {
     assert.ok(
       evaluateAuthorQualityContract(voiceBible({ pitch: CONTRACT_PITCH.slice(0, C.publicDescription.min - 1) })).warnings.some(

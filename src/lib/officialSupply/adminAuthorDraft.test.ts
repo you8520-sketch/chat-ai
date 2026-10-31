@@ -31,7 +31,7 @@ import {
 import { adminAuthorPreviewExportJson } from "@/lib/officialSupply/adminAuthorPreviewExport";
 import type { OfficialAuthorTransport } from "@/lib/officialSupply/author";
 import type { PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
-import type { OfficialCharacterBible, OfficialWorldBible } from "@/lib/officialSupply/bible";
+import { compileOfficialDraftFromBible, type OfficialCharacterBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import { buildOfficialCharacterFormBody, computeTextLockHash } from "@/lib/officialSupply/characterText";
 import {
   OFFICIAL_MODERN_DAILY_GENRE,
@@ -271,8 +271,8 @@ describe("G5-2 admin private draft save", () => {
   it("refuses a passing sheet once an adult stem is introduced", async () => {
     const pack = candidate("g5-modern-comedy");
     const bible = { ...pack.bible, greeting: `${pack.bible.greeting}\n사정을` };
-    const issues = assessAdminAuthorManuscript({ draft: { ...pack.draft, greeting: bible.greeting }, bible, world: pack.world, brief: pack.brief });
-    assert.ok(issues.some((issue) => issue.code === "sfw_public_text_has_adult_terms"));
+    const qa = assessAdminAuthorManuscript({ draft: { ...pack.draft, greeting: bible.greeting }, bible, world: pack.world, brief: pack.brief });
+    assert.ok(qa.errors.some((issue) => issue.code === "sfw_public_text_has_adult_terms"));
   });
 
   it("keeps a 21st preview when 20 saved holds already occupy memory", () => {
@@ -338,7 +338,8 @@ describe("G5-2 admin private draft save", () => {
       brief: pack.brief,
       bible,
     });
-    assert.equal(preview.qaOk, false);
+    assert.equal(preview.qaOk, true);
+    assert.ok(preview.warnings.some((issue) => issue.code === "bible_greeting_band"));
     assert.ok(preview.repairable);
     const voiceFixture = readJson<{ text: string }>(
       path.join(PROVIDER, "11-g5-modern-comedy-character_bible_voice.json")
@@ -457,7 +458,12 @@ describe("G5-2 admin private draft save", () => {
       if (!blocked.ok) assert.equal(blocked.status, 409);
       return;
     }
-    assert.equal(preview.textLock, computeTextLockHash(pack.draft));
+    // The recorded compiled draft used response 21's optional speech repair.
+    // This replay intentionally keeps response 19's now-saveable short speech.
+    const rawVoice = JSON.parse(readJson<{ text: string }>(path.join(PROVIDER, "19-g5-horror-dry-character_bible_voice.json")).text) as { speech: OfficialCharacterBible["speech"] };
+    assert.ok(preview.warnings.some((issue) => issue.code === "bible_speech_band"));
+    const expected = compileOfficialDraftFromBible({ ...pack.bible, speech: rawVoice.speech }, { ...pack.draft, worldBible: pack.world, worldName: pack.world.name });
+    assert.equal(preview.textLock, computeTextLockHash({ ...pack.draft, speech: expected.speech }));
     const saved = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
     assert.equal(saved.ok, true);
     if (!saved.ok) return;
@@ -468,6 +474,7 @@ describe("G5-2 admin private draft save", () => {
     assert.equal(row.assets, "[]");
     assert.equal(row.greeting, pack.draft.greeting);
     assert.equal(row.description, pack.draft.description);
+    assert.ok(String(row.example_dialog).includes(rawVoice.speech.description));
   });
 
   it("does not let another admin join an in-flight save or repair", async () => {
@@ -585,7 +592,7 @@ describe("G5-2 admin private draft save", () => {
       plan,
       world: pack.world,
       brief: pack.brief,
-      bible: { ...pack.bible, greeting: `"당신?"` },
+      bible: { ...pack.bible, greeting: "" },
     });
     assert.equal(qaFail.qaOk, false);
     const blockedSave = await saveHeldAdminAuthorPreview(ADMIN, qaFail.previewId);
@@ -611,7 +618,7 @@ describe("G5-2 admin private draft save", () => {
       },
     });
     assert.equal(blockedRepair.ok, false);
-    if (!blockedRepair.ok) assert.equal(blockedRepair.error, "고칠 검수 오류가 없습니다.");
+    if (!blockedRepair.ok) assert.equal(blockedRepair.error, "선택 보정으로 고칠 오류나 경고가 없습니다.");
   });
 
   it("does not insert a second row when a post-INSERT save step throws and the same preview is retried", async () => {
@@ -1358,7 +1365,7 @@ describe("G6-2A-R1 full authoring-mode execution", () => {
     return readJson<{ text: string }>(path.join(PROVIDER, file)).text;
   }
 
-  function modeFixture(adult: boolean, brokenTags = false) {
+  function modeFixture(adult: boolean, brokenTags = false, warningBands = false) {
     // File 17 is the already accepted replacement brief. Using it as the
     // first portfolio makes this a genuine no-replan fixture.
     const portfolio = JSON.parse(response("17-g5-horror-dry-world_bible.json")) as {
@@ -1367,6 +1374,7 @@ describe("G6-2A-R1 full authoring-mode execution", () => {
     for (const brief of portfolio.portfolio) brief.adultCandidate = adult;
     const voice = JSON.parse(response("19-g5-horror-dry-character_bible_voice.json")) as {
       nsfw: boolean;
+      greeting: string;
       speech: OfficialCharacterBible["speech"];
       publicProfile: OfficialCharacterBible["publicProfile"];
     };
@@ -1375,9 +1383,17 @@ describe("G6-2A-R1 full authoring-mode execution", () => {
     const speechRepair = JSON.parse(response("21-g5-horror-dry-character_bible_voice.json")) as {
       speech: OfficialCharacterBible["speech"];
     };
+    const originalSpeech = voice.speech;
     voice.speech = speechRepair.speech;
     voice.nsfw = adult;
     voice.publicProfile.tags = brokenTags ? [...groundedTags, "꿩뿔별똥망토"] : [...groundedTags];
+    const repairedVoice = structuredClone(voice);
+    repairedVoice.publicProfile.tags = [...groundedTags];
+    if (warningBands) {
+      voice.speech = originalSpeech;
+      voice.greeting = '"당신, 여기 표시가 하나 더 있어요." 그녀는 접어 둔 도면을 펼쳐 빈 선 옆에 놓고, 맞은편 자리를 가리킨다.';
+      voice.publicProfile.description = "당신은 정하린과 함께 어긋난 측량 기록을 확인하며 현장의 판단을 나눈다.";
+    }
     const bonds = JSON.parse(response("20-g5-horror-dry-character_bible_bonds.json")) as {
       nsfw: boolean;
       adultSection: OfficialCharacterBible["adultSection"];
@@ -1403,11 +1419,7 @@ describe("G6-2A-R1 full authoring-mode execution", () => {
         return { text, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
       },
     };
-    return { transport, calls, remaining: () => queue.length, repairedVoice: () => {
-      const repaired = structuredClone(voice);
-      repaired.publicProfile.tags = [...groundedTags];
-      return JSON.stringify(repaired);
-    } };
+    return { transport, calls, remaining: () => queue.length, warningVoice: JSON.stringify(voice), repairedVoice: () => JSON.stringify(repairedVoice) };
   }
 
   async function assertSavedMode(previewId: string, adult: boolean) {
@@ -1443,9 +1455,58 @@ describe("G6-2A-R1 full authoring-mode execution", () => {
     assert.equal(repeated.characterId, saved.characterId);
     assert.equal(repeated.alreadySaved, true);
     assert.equal((db.prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n, beforeRepeat);
+    return row;
   }
 
   for (const adult of [false, true]) {
+    it((adult ? "adult" : "general") + " length warnings survive preview/export and save without repair", async () => {
+      clearAdminAuthorPreviewsForTests();
+      const fixture = modeFixture(adult, false, true);
+      const preview = await previewAdminOfficialCharacter({ adminUserId: ADMIN.id, adminUser: ADMIN, selection: { ...autoHorrorDry, adult }, transport: fixture.transport });
+      assert.equal(preview.ok, true, JSON.stringify(preview));
+      if (!preview.ok) throw new Error("warning preview failed");
+      assert.equal(preview.qaOk, true, JSON.stringify(preview.issues));
+      assert.equal(preview.repairable, true);
+      for (const code of ["bible_greeting_band", "bible_speech_band", "bible_pitch_band"]) {
+        assert.equal(preview.warnings.filter((issue) => issue.code === code).length, 1, code);
+        assert.equal(preview.issues.some((issue) => issue.code === code), false);
+      }
+      assert.equal(fixture.calls.length, 7, "warnings must not cause automatic provider calls");
+      assert.deepEqual(JSON.parse(adminAuthorPreviewExportJson(preview)).warnings, preview.warnings);
+      const row = await assertSavedMode(preview.previewId, adult);
+      const original = JSON.parse(fixture.warningVoice);
+      assert.equal(row.greeting, original.greeting);
+      assert.ok(String(row.example_dialog).includes(original.speech.description));
+      let calls = 0;
+      const blocked = await repairHeldAdminAuthorPreview({ adminUserId: ADMIN.id, previewId: preview.previewId, transport: { label: "saved-warning-no-call", async completeJson() { calls++; throw new Error("unexpected call"); } } });
+      assert.equal(blocked.ok, false);
+      assert.equal(calls, 0);
+    });
+
+    it((adult ? "adult" : "general") + " warning-only explicit repair preserves mode and is rechecked before saving", async () => {
+      clearAdminAuthorPreviewsForTests();
+      const fixture = modeFixture(adult, false, true);
+      const preview = await previewAdminOfficialCharacter({ adminUserId: ADMIN.id, adminUser: ADMIN, selection: { ...autoHorrorDry, adult }, transport: fixture.transport });
+      if (!preview.ok) throw new Error(JSON.stringify(preview));
+      let calls = 0;
+      const repaired = await repairHeldAdminAuthorPreview({ adminUserId: ADMIN.id, previewId: preview.previewId, transport: {
+        label: "warning-only-repair",
+        async completeJson(input) {
+          calls++;
+          for (const code of ["bible_greeting_band", "bible_speech_band", "bible_pitch_band"]) assert.ok(input.user.includes(code), code);
+          return { text: fixture.repairedVoice(), model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+        },
+      } });
+      assert.equal(calls, 1);
+      if (!repaired.ok) throw new Error(JSON.stringify(repaired));
+      assert.equal(repaired.adult, adult);
+      assert.equal(repaired.qaOk, true, JSON.stringify(repaired.issues));
+      assert.equal(repaired.voiceRepairs, 1);
+      assert.equal(repaired.warnings.some((issue) => ["bible_greeting_band", "bible_speech_band", "bible_pitch_band"].includes(issue.code)), false);
+      assert.deepEqual(JSON.parse(adminAuthorPreviewExportJson(repaired)).warnings, repaired.warnings);
+      await assertSavedMode(repaired.previewId, adult);
+    });
+
     it((adult ? "adult" : "general") + " preview saves privately with its mode and no replan", async () => {
       clearAdminAuthorPreviewsForTests();
       const fixture = modeFixture(adult);
@@ -1474,6 +1535,70 @@ describe("G6-2A-R1 full authoring-mode execution", () => {
       await assertSavedMode(preview.previewId, adult);
     });
   }
+
+  it("warning-only repairs keep the two-repair limit even when the provider leaves warnings", async () => {
+    clearAdminAuthorPreviewsForTests();
+    const fixture = modeFixture(false, false, true);
+    let preview = await previewAdminOfficialCharacter({ adminUserId: ADMIN.id, selection: autoHorrorDry, transport: fixture.transport });
+    let calls = 0;
+    const transport: OfficialAuthorTransport = { label: "unchanged-warning-repair", async completeJson() {
+      calls++;
+      return { text: fixture.warningVoice, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+    } };
+    for (let i = 1; i <= 2; i++) {
+      if (!preview.ok) throw new Error(JSON.stringify(preview));
+      preview = await repairHeldAdminAuthorPreview({ adminUserId: ADMIN.id, previewId: preview.previewId, transport });
+      if (!preview.ok) throw new Error(JSON.stringify(preview));
+      assert.equal(preview.voiceRepairs, i);
+      assert.equal(preview.qaOk, true);
+      assert.ok(preview.warnings.some((issue) => issue.code === "bible_speech_band"));
+      assert.equal(preview.repairable, i < 2);
+    }
+    if (!preview.ok) throw new Error(JSON.stringify(preview));
+    assert.equal((await repairHeldAdminAuthorPreview({ adminUserId: ADMIN.id, previewId: preview.previewId, transport })).ok, false);
+    assert.equal(calls, 2);
+    await assertSavedMode(preview.previewId, false);
+  });
+
+  it("serializes warning-only saves and repairs in both arrival orders", async () => {
+    for (const first of ["repair", "save"] as const) {
+      clearAdminAuthorPreviewsForTests();
+      const fixture = modeFixture(false, false, true);
+      const preview = await previewAdminOfficialCharacter({ adminUserId: ADMIN.id, selection: autoHorrorDry, transport: fixture.transport });
+      if (!preview.ok) throw new Error(JSON.stringify(preview));
+      const before = (getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n;
+      let calls = 0;
+      let release!: () => void;
+      const waiting = new Promise<void>((resolve) => { release = resolve; });
+      const transport: OfficialAuthorTransport = { label: "save-repair-race", async completeJson() {
+        calls++;
+        await waiting;
+        return { text: fixture.repairedVoice(), model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+      } };
+      if (first === "repair") {
+        const repairing = repairHeldAdminAuthorPreview({ adminUserId: ADMIN.id, previewId: preview.previewId, transport });
+        try {
+          const blocked = await saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+          assert.equal(blocked.ok, false);
+          if (!blocked.ok) assert.equal(blocked.status, 409);
+          assert.equal((getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n, before);
+        } finally { release(); }
+        const repaired = await repairing;
+        if (!repaired.ok) throw new Error(JSON.stringify(repaired));
+        assert.equal(calls, 1);
+        await assertSavedMode(repaired.previewId, false);
+      } else {
+        setAdminAuthorSaveDelayForTests(20);
+        const saving = saveHeldAdminAuthorPreview(ADMIN, preview.previewId);
+        try {
+          assert.equal((await repairHeldAdminAuthorPreview({ adminUserId: ADMIN.id, previewId: preview.previewId, transport })).ok, false);
+          assert.equal(calls, 0);
+          assert.equal((await saving).ok, true);
+        } finally { setAdminAuthorSaveDelayForTests(0); release(); }
+        assert.equal((getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n, before + 1);
+      }
+    }
+  });
 
   it("retains adult canon through a real tag repair and the subsequent save", async () => {
     clearAdminAuthorPreviewsForTests();

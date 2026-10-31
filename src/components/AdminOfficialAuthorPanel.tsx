@@ -194,6 +194,7 @@ export default function AdminOfficialAuthorPanel({
           castIntent,
         },
         issues: issues as Preview["issues"],
+        warnings: [],
         ...readAdminAuthorServerFailure({ httpStatus: status, payload }),
         selection: { genre, tone, humor, pacing, nameWordplay, gender, castIntent },
         resolvedSource: "client_recommendation",
@@ -357,7 +358,7 @@ export default function AdminOfficialAuthorPanel({
         <div className="mt-4 space-y-2 text-sm text-zinc-200" data-testid="admin-author-preview">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p data-testid="admin-author-qa">
-              {preview.adult ? "성인" : "일반"} · 검수 {preview.qaOk ? "통과" : "실패"}
+              {preview.adult ? "성인" : "일반"} · {preview.qaOk ? `저장 가능${preview.warnings.length ? ` · 품질 경고 ${preview.warnings.length}건` : ""}` : "검수 실패"}
               {preview.textLock ? ` · Text Lock ${preview.textLock.slice(0, 12)}` : ""}
               {preview.voiceRepairs ? ` · 선택 보정 ${preview.voiceRepairs}회` : ""}
             </p>
@@ -376,11 +377,18 @@ export default function AdminOfficialAuthorPanel({
               검수에서 탈락한 원고입니다. 열람만 가능하며 저장·승인·공개되지 않습니다.
             </p>
           ) : null}
-          {preview.issues.map((issue) => (
-            <p key={`${issue.code}:${issue.message}`} className="text-rose-200">
-              {issue.code}: {issue.message}
-            </p>
-          ))}
+          {preview.issues.length > 0 ? (
+            <div data-testid="admin-author-errors" className="space-y-1 text-rose-200">
+              <p className="font-semibold">저장을 막는 오류</p>
+              {preview.issues.map((issue) => <p key={`${issue.code}:${issue.message}`}>{issue.code}: {issue.message}</p>)}
+            </div>
+          ) : null}
+          {preview.warnings.length > 0 ? (
+            <div data-testid="admin-author-warnings" className="space-y-1 text-amber-200">
+              <p className="font-semibold">품질 경고 · 저장을 막지 않습니다</p>
+              {preview.warnings.map((issue) => <p key={`${issue.code}:${issue.message}`}>{issue.code}: {issue.message}</p>)}
+            </div>
+          ) : null}
           {preview.manuscript.name ? (
             <p className="font-semibold text-white">
               {preview.manuscript.name} — {preview.manuscript.tagline}

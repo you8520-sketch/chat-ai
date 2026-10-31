@@ -39,6 +39,7 @@ function fixturePreview(input: {
     previewId: input.previewId,
     qaOk: input.qaOk,
     issues: input.issues ?? [],
+    warnings: [],
     repairable: false,
     voiceRepairs: 0,
     textLock: input.qaOk ? "passlock12deadbeef" : "faillock12deadbeef",
@@ -218,3 +219,55 @@ test("carries the adult mode to the preview and shows it", async ({ page }) => {
   }
   expect(general.length).toBeGreaterThan(0);
 });
+
+for (const width of [390, 1440]) {
+  test(`length warnings allow explicit repair and save at ${width}px`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await openCreate(page, width);
+    const base = fixturePreview({ previewId: "warning-fixture", qaOk: true, draft: park });
+    const warnings = [{ code: "bible_speech_band", message: "말투 설명 131자 · 권장 250~600자" }];
+    let previewCalls = 0;
+    let repairCalls = 0;
+    let saveCalls = 0;
+    await page.route("**/api/admin/official-author/preview", async (route) => {
+      previewCalls++;
+      await route.fulfill({ json: { ...base, adult: false, warnings, repairable: true } });
+    });
+    await page.route("**/api/admin/official-author/repair", async (route) => {
+      repairCalls++;
+      expect(route.request().postDataJSON()).toEqual({ previewId: "warning-fixture" });
+      await route.fulfill({ json: { ...base, adult: false, previewId: "repaired-fixture", voiceRepairs: 1 } });
+    });
+    await page.route("**/api/admin/official-author/save", async (route) => {
+      saveCalls++;
+      expect(route.request().postDataJSON()).toEqual({ previewId: "warning-fixture" });
+      await route.fulfill({ json: { ok: true, characterId: 999, alreadySaved: false, editPath: "/create?edit=999" } });
+    });
+    if (evidenceDir) {
+      fs.mkdirSync(evidenceDir, { recursive: true });
+      await page.locator('[data-testid="admin-official-author"]').screenshot({ path: path.join(evidenceDir, `warnings-before-${width}.png`) });
+    }
+    await page.getByRole("button", { name: "원고 생성", exact: true }).click();
+    await expect(page.getByTestId("admin-author-qa")).toContainText("저장 가능 · 품질 경고 1건");
+    await expect(page.getByTestId("admin-author-warnings")).toContainText("bible_speech_band");
+    await expect(page.getByTestId("admin-author-errors")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "선택 보정", exact: true })).toBeEnabled();
+    await expect(page.getByTestId("admin-author-save")).toBeEnabled();
+    expect(repairCalls).toBe(0);
+    if (evidenceDir) {
+      await page.getByTestId("admin-author-qa").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: path.join(evidenceDir, `warnings-after-${width}.png`) });
+    }
+    await page.getByTestId("admin-author-save").click();
+    await expect(page.getByTestId("admin-author-saved")).toBeVisible();
+    expect(saveCalls).toBe(1);
+    // A new mock preview lets the UI exercise explicit repair as well.
+    await page.getByRole("button", { name: "원고 생성", exact: true }).click();
+    await expect(page.getByTestId("admin-author-warnings")).toBeVisible();
+    await page.getByRole("button", { name: "선택 보정", exact: true }).click();
+    await expect(page.getByTestId("admin-author-warnings")).toHaveCount(0);
+    await expect(page.getByTestId("admin-author-qa")).toContainText("선택 보정 1회");
+    expect(previewCalls).toBe(2);
+    expect(repairCalls).toBe(1);
+  });
+}
