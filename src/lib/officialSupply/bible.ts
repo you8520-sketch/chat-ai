@@ -842,9 +842,11 @@ export function evaluateAuthorQualityContract(
   bible: Pick<OfficialCharacterBible, "greeting" | "speech" | "publicProfile">
 ): QaResult {
   const errors: QaIssue[] = [];
+  const warnings: QaIssue[] = [];
   const band = (code: string, label: string, value: number, range: { min: number; max: number }) => {
     if (value < range.min || value > range.max) {
-      errors.push(err(code, `${label} ${value} chars (production band ${range.min}-${range.max})`));
+      // Recommended length only: a short or long-but-valid sheet stays usable.
+      warnings.push(warn(code, `${label} ${value} chars (recommended band ${range.min}-${range.max})`));
     }
   };
   const C = OFFICIAL_AUTHOR_QUALITY_CONTRACT;
@@ -875,7 +877,7 @@ export function evaluateAuthorQualityContract(
     errors.push(err("bible_pitch_no_user", "public pitch must say what the user (당신) gets from this character"));
   }
   if (nonEmpty(pitch) && isFillerProse(pitch)) errors.push(err("bible_pitch_filler", "public pitch repeats itself"));
-  return qaResult(errors);
+  return qaResult(errors, warnings);
 }
 
 /**

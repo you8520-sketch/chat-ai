@@ -328,9 +328,11 @@ describe("author quality contract (prompt == QA)", () => {
     assert.deepEqual(evaluateAuthorQualityContract(voiceBible()).errors, []);
   });
 
-  it("greeting under the hard minimum fails; at the minimum passes", () => {
+  it("greeting under the recommended minimum only warns; at the minimum passes", () => {
     const short = CONTRACT_GREETING.slice(0, C.greeting.min - 1);
-    assert.ok(evaluateAuthorQualityContract(voiceBible({ greeting: short })).errors.some((e) => e.code === "bible_greeting_band"));
+    const qa = evaluateAuthorQualityContract(voiceBible({ greeting: short }));
+    assert.ok(qa.warnings.some((e) => e.code === "bible_greeting_band"));
+    assert.equal(qa.errors.some((e) => e.code === "bible_greeting_band"), false);
     assert.ok(CONTRACT_GREETING.length >= C.greeting.min);
   });
 
@@ -345,7 +347,7 @@ describe("author quality contract (prompt == QA)", () => {
     const overBand = `${CONTRACT_GREETING}${"가".repeat(C.greeting.max + 1 - CONTRACT_GREETING.length)}`;
     assert.equal(overBand.length, C.greeting.max + 1);
     assert.ok(overBand.length <= 2000);
-    assert.ok(evaluateAuthorQualityContract(voiceBible({ greeting: overBand })).errors.some((issue) => issue.code === "bible_greeting_band"));
+    assert.ok(evaluateAuthorQualityContract(voiceBible({ greeting: overBand })).warnings.some((issue) => issue.code === "bible_greeting_band"));
   });
 
   it("greeting must be an in-scene opening with voice and the user", () => {
@@ -361,9 +363,9 @@ describe("author quality contract (prompt == QA)", () => {
     assert.ok(qa.errors.some((e) => e.code === "bible_speech_coverage" && /angryStyle/.test(e.message)));
   });
 
-  it("public pitch needs the minimum length and a user-facing promise", () => {
+  it("public pitch needs the recommended length as a warning and a user-facing promise", () => {
     assert.ok(
-      evaluateAuthorQualityContract(voiceBible({ pitch: CONTRACT_PITCH.slice(0, C.publicDescription.min - 1) })).errors.some(
+      evaluateAuthorQualityContract(voiceBible({ pitch: CONTRACT_PITCH.slice(0, C.publicDescription.min - 1) })).warnings.some(
         (e) => e.code === "bible_pitch_band"
       )
     );
