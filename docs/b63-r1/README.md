@@ -2,13 +2,13 @@
 
 Status: **implementation Draft. Comparison-only runtime path; operational RAW4/10k defaults are unchanged. No paid calls were made for this change.**
 
-This document corrects the B63 100-turn A/B/C/D report and describes the R1b comparison
+This document corrects the B63 100-turn A/B/C/D report and describes the R1b/R1c comparison
 path. The full evidence, reconstructed final messages, 24-response audit, cadence audit,
 real-fixture final messages, and integrity manifests are in the private evidence PR:
 
 - https://github.com/you8520-sketch/hav-rp-evidence-private/pull/52
 - Path: `cases/elin/results/B63-simple-memory-window/R1/`
-- Evidence PR #52 contains the current R1/R1b head.
+- Evidence PR #52 contains the current R1/R1b/R1c head.
 - Original evidence head reviewed by GPT: `2bb5a7fbba1636f604bed7c80ed1add93bc65e1e`
 
 ## What was wrong
@@ -94,22 +94,23 @@ history is fabricated from the 100-turn source. Full design:
 - No paid RP revalidation.
 - No 500/1,000-turn claim.
 
-## R1b implementation
+## R1b/R1c implementation
 
 The comparison-only path is in:
 
-- `src/lib/memory/memory-b63-comparison.ts` — bounded recent detail + old-summary search
-- `src/lib/memory/memory-manager.ts` — comparison-mode wiring
+- `src/lib/memory/memory-b63-comparison.ts` — delivered recent detail + old-summary search
+  with query-focused original excerpts
+- `src/lib/memory/memory-manager.ts` — comparison-mode wiring, delivered-range coverage
 - `src/services/contextBuilder.ts` — RAW6 history floor/budget and dynamic sections
 - `src/types.ts` — comparison-only input fields
 - `src/lib/memory/memory-b63-comparison.test.ts` — deterministic fixture
 
 See `docs/b63-r1/implementation.md` for final messages, token budgets, search results,
-tests, and remaining uncertainty.
+GPT counterexample before/after, tests, and remaining uncertainty.
 
 ## Files
 
-- `docs/b63-r1/implementation.md` — R1b implementation and real-fixture evidence
+- `docs/b63-r1/implementation.md` — R1b/R1c implementation and real-fixture evidence
 - `docs/b63-r1/owner-map.md` — current owner map plus R1 verified details
 - `docs/b63-r1/next-comparison-design.md` — stratified design and pre-registered criteria
 - `docs/b63-r1/cleanup-candidates.md` — VERIFICATION PENDING / KEEP / FOLLOW-UP list, evidence only

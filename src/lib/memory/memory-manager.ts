@@ -264,6 +264,19 @@ export function buildHierarchicalMemoryPromptLayers(opts: {
   };
 }
 
+function resolveB63ComparisonRange(opts: {
+  chatId: number;
+  excludeSummaryTurnStartGte?: number;
+  comparisonMode?: boolean;
+}): { completedTurns: number; rawStart: number } | null {
+  if (opts.comparisonMode !== true) return null;
+  const completedTurns = countMemoryEligibleCompletedTurns(opts.chatId);
+  return {
+    completedTurns,
+    rawStart: opts.excludeSummaryTurnStartGte ?? completedTurns + 1,
+  };
+}
+
 /** Model picker / dry-run — read-only memory assembly (no DB writes, no background jobs). */
 function buildB63DetailProjection(opts: {
   chatId: number;
@@ -271,12 +284,11 @@ function buildB63DetailProjection(opts: {
   comparisonMode?: boolean;
   comparisonDetailTurnCount?: number;
 }) {
-  if (opts.comparisonMode !== true) return null;
-  const completedTurns = countMemoryEligibleCompletedTurns(opts.chatId);
-  const rawStart = opts.excludeSummaryTurnStartGte ?? completedTurns + 1;
+  const range = resolveB63ComparisonRange(opts);
+  if (!range) return null;
   return buildRecentTurnDetailProjection({
     chatId: opts.chatId,
-    rawStartTurn: rawStart,
+    rawStartTurn: range.rawStart,
     detailTurnCount: opts.comparisonDetailTurnCount,
   });
 }
@@ -291,16 +303,20 @@ function buildB63PastSearch(
   },
   detail: ReturnType<typeof buildRecentTurnDetailProjection> | null
 ): string {
-  if (opts.comparisonMode !== true) return "";
-  const completedTurns = countMemoryEligibleCompletedTurns(opts.chatId);
-  const rawStart = opts.excludeSummaryTurnStartGte ?? completedTurns + 1;
-  const ranges = [{ start: rawStart, end: Math.max(rawStart, completedTurns) }];
-  if (detail) ranges.push({ start: detail.detailStart, end: detail.detailEnd });
+  const range = resolveB63ComparisonRange(opts);
+  if (!range) return "";
+  const deliveredRanges =
+    detail?.blocks.map((block) => ({ start: block.turnStart, end: block.turnEnd })) ?? [];
   const search = searchPastTurnSummaries({
     chatId: opts.chatId,
     query: opts.userMessage,
     sceneText: opts.comparisonSceneText,
-    excludeRanges: ranges,
+    excludeRanges: [
+      { start: range.rawStart, end: Math.max(range.rawStart, range.completedTurns) },
+    ],
+    // Only records fully delivered by detail are removed from search. A record
+    // that straddles a delivered block and an omitted turn remains searchable.
+    excludeCoveredRanges: deliveredRanges,
   });
   return search.text;
 }
@@ -326,11 +342,14 @@ export async function buildMemoryContextForPreview(opts: {
   const memory = getChatMemoryRow(opts.chatId);
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
   const detail = buildB63DetailProjection(opts);
-  const globalCutoff = detail ? detail.detailStart : opts.excludeSummaryTurnStartGte;
+  const comparisonRange = resolveB63ComparisonRange(opts);
+  const deliveredRanges =
+    detail?.blocks.map((block) => ({ start: block.turnStart, end: block.turnEnd })) ?? [];
+  const globalCutoff = comparisonRange ? comparisonRange.rawStart : opts.excludeSummaryTurnStartGte;
   const resolved = resolveGlobalCurrentMemory(opts.chatId, budget.lorebook, {
     excludeTurnStartGte: globalCutoff,
-    excludeTurnEndGte: detail ? detail.detailStart : undefined,
-    storedRecentSummary: memory?.recent_summary,
+    excludeCoveredRanges: deliveredRanges,
+    storedRecentSummary: detail ? "" : memory?.recent_summary,
   });
   const recentForPrompt = summaryTextForPromptInjection(
     opts.chatId,
@@ -348,7 +367,7 @@ export async function buildMemoryContextForPreview(opts: {
     chatId: opts.chatId,
     blockCount: MEDIUM_TERM_BLOCK_COUNT,
     excludeTurnStartGte: globalCutoff,
-    excludeTurnEndGte: detail ? detail.detailStart : undefined,
+    excludeCoveredRanges: deliveredRanges,
     projectionKind: resolved.projectionKind,
     manualBoundaryTurn: resolved.manualBoundaryTurn,
   });
@@ -397,12 +416,15 @@ export async function buildMemoryContextForChat(opts: {
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
   const detail = buildB63DetailProjection(opts);
-  const globalCutoff = detail ? detail.detailStart : opts.excludeSummaryTurnStartGte;
+  const comparisonRange = resolveB63ComparisonRange(opts);
+  const deliveredRanges =
+    detail?.blocks.map((block) => ({ start: block.turnStart, end: block.turnEnd })) ?? [];
+  const globalCutoff = comparisonRange ? comparisonRange.rawStart : opts.excludeSummaryTurnStartGte;
 
   const resolved = resolveGlobalCurrentMemory(opts.chatId, budget.lorebook, {
     excludeTurnStartGte: globalCutoff,
-    excludeTurnEndGte: detail ? detail.detailStart : undefined,
-    storedRecentSummary: memory.recent_summary,
+    excludeCoveredRanges: deliveredRanges,
+    storedRecentSummary: detail ? "" : memory.recent_summary,
   });
   const archiveSummary = memory.archive_summary?.trim() ?? "";
   const recentForPrompt = summaryTextForPromptInjection(
@@ -444,7 +466,7 @@ export async function buildMemoryContextForChat(opts: {
     chatId: opts.chatId,
     blockCount: MEDIUM_TERM_BLOCK_COUNT,
     excludeTurnStartGte: globalCutoff,
-    excludeTurnEndGte: detail ? detail.detailStart : undefined,
+    excludeCoveredRanges: deliveredRanges,
     projectionKind: resolved.projectionKind,
     manualBoundaryTurn: resolved.manualBoundaryTurn,
   });

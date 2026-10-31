@@ -335,6 +335,8 @@ export function listPromptInjectibleMemoryRecords(
     excludeTurnStartGte?: number;
     /** Drop records that overlap this end boundary (inclusive). */
     excludeTurnEndGte?: number;
+    /** Drop records fully contained in any of these delivered ranges. */
+    excludeCoveredRanges?: readonly { start: number; end: number }[];
     excludeAssistantMessageId?: number | null;
   }
 ): MemoryRecordView[] {
@@ -347,6 +349,15 @@ export function listPromptInjectibleMemoryRecords(
   if (endCutoff != null && endCutoff > 0) {
     records = records.filter((record) => record.turnEnd < endCutoff);
   }
+  const coveredRanges = opts?.excludeCoveredRanges ?? [];
+  if (coveredRanges.length > 0) {
+    records = records.filter(
+      (record) =>
+        !coveredRanges.some(
+          (range) => record.turnStart >= range.start && record.turnEnd <= range.end
+        )
+    );
+  }
   if (opts?.excludeAssistantMessageId != null) {
     records = records.filter(
       (record) => record.assistantMessageId !== opts.excludeAssistantMessageId
@@ -358,7 +369,11 @@ export function listPromptInjectibleMemoryRecords(
 /** Injected lorebook — main_canon + active branch_canon + preference only. */
 export function rebuildLorebookFromRecords(
   chatId: number,
-  opts?: { excludeTurnStartGte?: number; excludeTurnEndGte?: number }
+  opts?: {
+    excludeTurnStartGte?: number;
+    excludeTurnEndGte?: number;
+    excludeCoveredRanges?: readonly { start: number; end: number }[];
+  }
 ): string {
   return listPromptInjectibleMemoryRecords(chatId, opts)
     .map((record) => {

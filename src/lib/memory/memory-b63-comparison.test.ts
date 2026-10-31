@@ -7,9 +7,12 @@ import { upsertSummaryRowCore } from "./memory-summary-persist";
 import {
   B63_PAST_SEARCH_MAX_CHARS,
   B63_RECENT_DETAIL_MAX_CHARS,
+  B63_RECENT_DETAIL_MAX_TOKENS,
   buildRecentTurnDetailProjection,
   searchPastTurnSummaries,
 } from "./memory-b63-comparison";
+import { listPromptInjectibleMemoryRecords } from "./memory-turn-summary";
+import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
 import { buildMemoryContextForPreview } from "./memory-manager";
 import { buildContext } from "@/services/contextBuilder";
 
@@ -18,6 +21,15 @@ const CHAR = 99002;
 const CHAT_A = 99010;
 const CHAT_B = 99011;
 const CHAT_C = 99012;
+const CHAT_D = 99013;
+const CHAT_E = 99014;
+const CHAT_F = 99015;
+const CHAT_G = 99016;
+const CHAT_H = 99017;
+const CHAT_I = 99018;
+const CHAT_J = 99019;
+const CHAT_K = 99020;
+const CHAT_L = 99021;
 const TURNS = 36;
 
 const TOPICS: Record<number, string> = {
@@ -70,6 +82,14 @@ function insertMessages(chatId: number) {
   }
 }
 
+function insertTurn(chatId: number, turn: number, user: string, assistant: string) {
+  const insert = getDb().prepare(
+    "INSERT INTO messages (chat_id, role, content, model, user_message_id, generation_status) VALUES (?,?,?,?,?,'completed')"
+  );
+  const uid = Number(insert.run(chatId, "user", user, "test-model", null).lastInsertRowid);
+  insert.run(chatId, "assistant", assistant, "test-model", uid);
+}
+
 function summary(chatId: number, start: number, end: number, text: string, extra: Partial<Parameters<typeof upsertSummaryRowCore>[0]> = {}) {
   upsertSummaryRowCore({
     chatId,
@@ -93,7 +113,9 @@ before(() => {
     "x"
   );
   db.prepare("INSERT OR IGNORE INTO characters (id, name) VALUES (?,?)").run(CHAR, "오스카");
-  for (const chatId of [CHAT_A, CHAT_B, CHAT_C]) insertChat(chatId);
+  for (const chatId of [CHAT_A, CHAT_B, CHAT_C, CHAT_D, CHAT_E, CHAT_F, CHAT_G, CHAT_H, CHAT_I, CHAT_J, CHAT_K, CHAT_L]) {
+    insertChat(chatId);
+  }
   insertMessages(CHAT_A);
   insertMessages(CHAT_C);
 
@@ -115,6 +137,47 @@ before(() => {
     if (turn === 15) continue;
     summary(CHAT_C, turn, turn, `Turn ${turn}: ${TOPICS[turn] ?? "mission event"} for Oscar.`);
   }
+
+  // R1c budget fixtures: 20 per-turn rows at 450 and 500 chars.
+  for (let turn = 75; turn <= 94; turn += 1) {
+    summary(CHAT_D, turn, turn, "가".repeat(450));
+    summary(CHAT_E, turn, turn, "가".repeat(500));
+    summary(CHAT_F, turn, turn, "가".repeat(500));
+  }
+  // Gap + budget: T85 is absent; all other detail turns have 500-char rows.
+  for (let turn = 75; turn <= 94; turn += 1) {
+    if (turn === 85) continue;
+    summary(CHAT_G, turn, turn, "가".repeat(500));
+  }
+  // Boundary fixture: a 5-turn row crossing detailStart=75 plus per-turn rows.
+  summary(CHAT_H, 71, 75, "경계".repeat(100));
+  for (let turn = 76; turn <= 94; turn += 1) {
+    summary(CHAT_H, turn, turn, "경계".repeat(100));
+  }
+  // Header-only budget fixture.
+  summary(CHAT_L, 75, 75, "가".repeat(100));
+
+  // Search fixtures: the summary matches, while the original quote is mid-range
+  // or at the end of a long message and has no query token in it.
+  for (let turn = 1; turn <= 15; turn += 1) {
+    insertTurn(CHAT_I, turn, `filler ${turn}`, `filler ${turn}`);
+  }
+  for (let turn = 16; turn <= 20; turn += 1) {
+    insertTurn(
+      CHAT_I,
+      turn,
+      `T${turn} routine question`,
+      turn === 18 ? "ordinary scene MIDDLE_QUOTE_T18" : `T${turn} ordinary scene`
+    );
+  }
+  summary(CHAT_I, 16, 20, "은빛 열쇠에 관한 약속이 있었다.");
+  for (let turn = 1; turn <= 19; turn += 1) {
+    insertTurn(CHAT_J, turn, `filler ${turn}`, `filler ${turn}`);
+  }
+  insertTurn(CHAT_J, 20, "T20 routine question", `${"서술 ".repeat(500)}LATE_QUOTE_T20`);
+  summary(CHAT_J, 20, 20, "은빛 열쇠에 관한 약속이 있었다.");
+  summary(CHAT_K, 75, 85, "은빛 열쇠 약속 항구");
+  summary(CHAT_K, 86, 90, "은빛 열쇠 약속 등대");
 });
 
 after(() => {
@@ -180,9 +243,11 @@ describe("B63 comparison-only memory path", () => {
     assert.equal(result.hits[0]?.turnStart, 1);
     assert.equal(result.hits[0]?.turnEnd, 5);
     assert.match(result.text, /\[T1~5\]/);
-    assert.match(result.text, /\[T1\] USER:/);
-    assert.match(result.text, /\[T1\] ASSISTANT:/);
+    assert.match(result.text, /\[T1\] USER \(message \d+, chars \d+-\d+\):/);
+    assert.match(result.text, /\[T1\] ASSISTANT \(message \d+, chars \d+-\d+\):/);
     assert.ok(result.hits[0]?.original[0]?.userMessageId);
+    assert.ok(result.hits[0]?.originalSpans.length > 0);
+    assert.ok(result.hits[0]?.originalExcerpt.length > 0);
     assert.ok(result.chars <= B63_PAST_SEARCH_MAX_CHARS);
   });
 
@@ -244,6 +309,214 @@ describe("B63 comparison-only memory path", () => {
       ],
     });
     assert.equal(result.hits.length, 0);
+  });
+
+  it("delivers 20 detail turns at 450 and 500 chars within final caps", () => {
+    for (const [chatId, bodyChars] of [
+      [CHAT_D, 450],
+      [CHAT_E, 500],
+    ] as const) {
+      const detail = buildRecentTurnDetailProjection({ chatId, rawStartTurn: 95 });
+      assert.equal(detail.blocks.length, 20);
+      assert.deepEqual(detail.coveredTurns, Array.from({ length: 20 }, (_, i) => 75 + i));
+      assert.deepEqual(detail.deliveredDetailTurns, Array.from({ length: 20 }, (_, i) => 75 + i));
+      assert.deepEqual(detail.missingTurns, []);
+      assert.deepEqual(detail.omittedTurns, []);
+      assert.equal(detail.coverageComplete, true);
+      assert.equal(detail.targetMet, true);
+      assert.ok(detail.chars >= bodyChars * 20);
+      assert.ok(detail.chars <= B63_RECENT_DETAIL_MAX_CHARS);
+      assert.ok(detail.estimatedTokens <= B63_RECENT_DETAIL_MAX_TOKENS);
+    }
+  });
+
+  it("counts header, labels, and newlines in a tiny detail cap", () => {
+    const detail = buildRecentTurnDetailProjection({
+      chatId: CHAT_L,
+      rawStartTurn: 76,
+      detailTurnCount: 1,
+      maxChars: 107,
+      maxTokens: 100000,
+    });
+    assert.ok(detail.chars <= 107);
+    assert.equal(detail.blocks.length, 0);
+    assert.deepEqual(detail.omittedTurns, [75]);
+    assert.deepEqual(detail.missingTurns, []);
+    assert.equal(detail.coverageComplete, false);
+    assert.equal(detail.budgetLimited, true);
+    assert.equal(detail.text, "");
+  });
+
+  it("keeps newest detail rows when the budget is tight", () => {
+    const detail = buildRecentTurnDetailProjection({
+      chatId: CHAT_F,
+      rawStartTurn: 95,
+      maxChars: 5000,
+      maxTokens: 100000,
+    });
+    assert.ok(detail.blocks.length < 20);
+    assert.ok(detail.blocks.some((block) => block.turnStart === 94));
+    assert.ok(!detail.blocks.some((block) => block.turnStart === 75));
+    assert.deepEqual(detail.missingTurns, []);
+    assert.ok(detail.omittedTurns.includes(75));
+    assert.ok(!detail.omittedTurns.includes(94));
+    assert.equal(detail.coverageComplete, false);
+    assert.equal(detail.budgetLimited, true);
+    assert.deepEqual(
+      detail.coveredTurns,
+      detail.blocks.flatMap((block) =>
+        Array.from({ length: block.turnEnd - block.turnStart + 1 }, (_, i) => block.turnStart + i)
+      ).sort((a, b) => a - b)
+    );
+    assert.ok(detail.chars <= 5000);
+  });
+
+  it("distinguishes unsaved turns from budget-omitted turns", () => {
+    const detail = buildRecentTurnDetailProjection({
+      chatId: CHAT_G,
+      rawStartTurn: 95,
+      maxChars: 5000,
+      maxTokens: 100000,
+    });
+    assert.deepEqual(detail.missingTurns, [85]);
+    assert.ok(detail.omittedTurns.includes(75));
+    assert.ok(!detail.omittedTurns.includes(85));
+    assert.equal(detail.coverageComplete, false);
+  });
+
+  it("includes a 5-turn row straddling detailStart and excludes it from Global", async () => {
+    const detail = buildRecentTurnDetailProjection({ chatId: CHAT_H, rawStartTurn: 95 });
+    assert.equal(detail.detailStart, 75);
+    assert.ok(detail.blocks.some((block) => block.turnStart === 71 && block.turnEnd === 75));
+    assert.ok(detail.coveredTurns.includes(71));
+    assert.ok(detail.coveredTurns.includes(75));
+    assert.deepEqual(detail.missingTurns, []);
+    assert.deepEqual(detail.omittedTurns, []);
+    assert.equal(detail.coverageComplete, true);
+
+    const injection = await buildMemoryContextForPreview({
+      chatId: CHAT_H,
+      tier: "free",
+      memoryCapacity: 10000,
+      userMessage: "무관한 질문",
+      modelId: "gemini-3.8-flash",
+      provider: "cheaperinference",
+      excludeSummaryTurnStartGte: 95,
+      comparisonMode: true,
+      comparisonDetailTurnCount: 20,
+    });
+    assert.match(injection.recentDetailText, /\[T71~75\]/);
+    assert.doesNotMatch(injection.text, /\[T71~75\]/);
+  });
+
+  it("selects a middle original turn and records span provenance", () => {
+    const result = searchPastTurnSummaries({
+      chatId: CHAT_I,
+      query: "은빛 열쇠 약속",
+    });
+    assert.equal(result.hits.length, 1);
+    assert.ok(result.text.includes("MIDDLE_QUOTE_T18"));
+    const hit = result.hits[0]!;
+    assert.equal(hit.original.length, 5);
+    assert.ok(
+      hit.original.some(
+        (turn) => turn.turnNumber === 18 && turn.assistant.includes("MIDDLE_QUOTE_T18")
+      )
+    );
+    const span = hit.originalSpans.find(
+      (entry) => entry.turnNumber === 18 && entry.text.includes("MIDDLE_QUOTE_T18")
+    );
+    assert.ok(span);
+    assert.ok(span!.messageId != null);
+    assert.ok(span!.end > span!.start);
+    assert.ok(hit.originalExcerpt.includes("MIDDLE_QUOTE_T18"));
+    assert.ok(hit.promptLine.includes("MIDDLE_QUOTE_T18"));
+    assert.ok(hit.summary.length >= hit.summaryInPrompt.length);
+  });
+
+  it("keeps a late quote from a long original message in the prompt excerpt", () => {
+    const result = searchPastTurnSummaries({
+      chatId: CHAT_J,
+      query: "은빛 열쇠 약속",
+    });
+    assert.equal(result.hits.length, 1);
+    assert.ok(result.text.includes("LATE_QUOTE_T20"));
+    const hit = result.hits[0]!;
+    assert.ok(hit.original[0]!.assistant.includes("LATE_QUOTE_T20"));
+    const span = hit.originalSpans.find(
+      (entry) => entry.role === "assistant" && entry.text.includes("LATE_QUOTE_T20")
+    );
+    assert.ok(span);
+    assert.ok(span!.end > 1000);
+    assert.ok(hit.originalExcerpt.includes("LATE_QUOTE_T20"));
+  });
+
+  it("excludes fully delivered summaries but keeps partially covered records", () => {
+    const covered = searchPastTurnSummaries({
+      chatId: CHAT_K,
+      query: "은빛 열쇠 약속 항구 등대",
+      excludeCoveredRanges: [{ start: 75, end: 85 }],
+    });
+    assert.equal(covered.hits.length, 1);
+    assert.equal(covered.hits[0]?.turnStart, 86);
+
+    const partial = searchPastTurnSummaries({
+      chatId: CHAT_K,
+      query: "은빛 열쇠 약속 항구 등대",
+      excludeCoveredRanges: [{ start: 80, end: 85 }],
+    });
+    assert.ok(partial.hits.some((hit) => hit.turnStart === 75));
+    assert.ok(partial.hits.some((hit) => hit.turnStart === 86));
+
+    const kept = listPromptInjectibleMemoryRecords(CHAT_K, {
+      excludeCoveredRanges: [{ start: 80, end: 85 }],
+    });
+    assert.ok(kept.some((record) => record.turnStart === 75));
+    const dropped = listPromptInjectibleMemoryRecords(CHAT_K, {
+      excludeCoveredRanges: [{ start: 75, end: 85 }],
+    });
+    assert.ok(!dropped.some((record) => record.turnStart === 75));
+  });
+
+  it("keeps omitted detail turns in Global instead of treating nominal detail as delivered", () => {
+    const partial = resolveGlobalCurrentMemory(CHAT_K, 10000, {
+      excludeTurnStartGte: 95,
+      excludeCoveredRanges: [{ start: 75, end: 85 }],
+    });
+    assert.match(partial.text, /\[86~90턴\]/);
+    assert.doesNotMatch(partial.text, /\[75~85턴\]/);
+
+    const full = resolveGlobalCurrentMemory(CHAT_K, 10000, {
+      excludeTurnStartGte: 95,
+      excludeCoveredRanges: [{ start: 75, end: 90 }],
+    });
+    assert.equal(full.text, "");
+  });
+
+  it("keeps the operational RAW4/10k default when comparison is off", () => {
+    const longHistory: { role: "user" | "assistant"; content: string }[] = Array.from(
+      { length: 12 },
+      (_, i) => ({
+        role: i % 2 === 0 ? "user" : "assistant",
+        content: "긴 문장 ".repeat(600),
+      })
+    );
+    const built = buildContext({
+      charName: "오스카",
+      chunks: [],
+      userNickname: "제이",
+      userPersona: "제이",
+      personaDisplayName: "제이",
+      shortTermHistory: longHistory,
+      currentUserMessage: "continue",
+      nsfw: false,
+      modelId: "gemini-3.8-flash",
+      provider: "cheaperinference",
+      narrativePov: "third_person_limited",
+    });
+    assert.equal(built.history.length, 9);
+    assert.doesNotMatch(built.systemPrompt, /\[최근 20턴 상세 기억/);
+    assert.doesNotMatch(built.systemPrompt, /\[과거 기억 검색/);
   });
 
   it("keeps six RAW exchanges and injects detail/search in dynamic sections", async () => {
