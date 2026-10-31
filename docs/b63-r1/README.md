@@ -75,7 +75,7 @@ Key findings:
 
 ## Cleanup / integration candidates
 
-`docs/b63-r1/cleanup-candidates.md` lists SAFE TO DELETE / KEEP / FOLLOW-UP candidates
+`docs/b63-r1/cleanup-candidates.md` lists VERIFICATION PENDING / KEEP / FOLLOW-UP candidates
 with evidence. No deletion or integration is performed in this PR.
 
 ## Next paid comparison (design only, not executed)

@@ -98,6 +98,6 @@ History:
 - B and C final RAW are T97-100. C requested T95-100 but the 10k history budget trimmed it back to T97-100; T95-96 are absent. This is an operational trim finding, not fixed in R1.
 - B summary coverage is T56-94. T95-96 are absent from both summary and RAW.
 - D injects A Global T1-100 plus detail T75-94; T76-94 is duplicated between Global 5-turn blocks and the detail projection.
-- A `[66~70턴]` summary contains the T71 instruction (future information). See `R1/cadence_audit.md`.
-- B per-turn summaries were generated from 5-turn batch input, so earlier turn summaries can contain later-turn information (B73/B74 samples).
+- A `[66~70턴]` summary contains the T71 instruction. T68/T70 status windows already state the plan, so this is a **plan-as-event/temporal ambiguity** candidate, not proven future-turn leakage. See `R1/cadence_audit.md`.
+- B per-turn summaries were generated from 5-turn batch input, so earlier turn summaries can contain later-turn material (B73/B74 samples). T74 already states the next-day plan, so this is also a plan-as-event/temporal ambiguity candidate, not proven leakage.
 - 40-turn `ren9_40turn_summary_reference.txt` is a summary reference for a different RP, not the Elin 100-turn dialogue.
