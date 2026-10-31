@@ -20,8 +20,8 @@ unchanged.
 - `ContextBuildInput.comparisonRawExchanges` raises the history floor.
 - `ContextBuildInput.comparisonHistoryTokenBudget` supplies the comparison history budget.
 - The real fixture uses 60,000 history tokens and keeps 12 RAW messages (T95–100) + the
-  current question = 13 history messages. Final input estimate: **~81,337 tokens**
-  (system 22,535 + history 58,802).
+  current question = 13 history messages. Final input estimate: **~81,336 tokens**
+  (system 22,534 + history 58,802).
 - If the budget cannot hold 6 exchanges, the caller must inspect `history.length` and the
   final message list; the builder does not silently claim RAW6.
 
@@ -101,9 +101,9 @@ unchanged.
 | Search exclusions | RAW T95–100; fully delivered detail T75–94 |
 | Final messages | 14 (system + 12 RAW + current) |
 | History messages | 13 |
-| System chars / est tokens | 25,038 / 22,535 |
+| System chars / est tokens | 25,037 / 22,534 |
 | History chars / est tokens | 65,323 / 58,802 |
-| Search chars / est tokens | 2,376 / 2,139 (cap 5,000 / 2,500) |
+| Search chars / est tokens | 2,375 / 2,138 (cap 5,000 / 2,500) |
 | Duplicate detail/RAW | false |
 
 ### Search results
@@ -143,7 +143,7 @@ injected.
 
 ## Tests
 
-- `src/lib/memory/memory-b63-comparison.test.ts`: 19 tests, 18 pass; 1 Windows EPERM
+- `src/lib/memory/memory-b63-comparison.test.ts`: 21 tests, 20 pass; 1 Windows EPERM
   temp-DB cleanup only. Covers 20×450/500, header caps, newest-first, missing vs omitted,
   5-turn boundary, Global partial coverage, middle/late original quotes, fully/partially
   covered search rows, RAW6, and comparison-off RAW4/10k.

@@ -362,8 +362,7 @@ function selectMessageSpans(text: string, queryText: string, maxChars: number): 
       }
     }
     let start = Math.max(0, bestIndex - Math.floor(budget * 0.35));
-    let end = Math.min(normalized.length, start + budget);
-    if (end - start < budget) start = Math.max(0, end - budget);
+    const end = Math.min(normalized.length, start + budget);
     const spanText = normalized.slice(start, end);
     const matchedTokens = [
       ...new Set(

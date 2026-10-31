@@ -30,6 +30,8 @@ const CHAT_I = 99018;
 const CHAT_J = 99019;
 const CHAT_K = 99020;
 const CHAT_L = 99021;
+const CHAT_M = 99022;
+const CHAT_N = 99023;
 const TURNS = 36;
 
 const TOPICS: Record<number, string> = {
@@ -113,7 +115,7 @@ before(() => {
     "x"
   );
   db.prepare("INSERT OR IGNORE INTO characters (id, name) VALUES (?,?)").run(CHAR, "오스카");
-  for (const chatId of [CHAT_A, CHAT_B, CHAT_C, CHAT_D, CHAT_E, CHAT_F, CHAT_G, CHAT_H, CHAT_I, CHAT_J, CHAT_K, CHAT_L]) {
+  for (const chatId of [CHAT_A, CHAT_B, CHAT_C, CHAT_D, CHAT_E, CHAT_F, CHAT_G, CHAT_H, CHAT_I, CHAT_J, CHAT_K, CHAT_L, CHAT_M, CHAT_N]) {
     insertChat(chatId);
   }
   insertMessages(CHAT_A);
@@ -178,6 +180,27 @@ before(() => {
   summary(CHAT_J, 20, 20, "은빛 열쇠에 관한 약속이 있었다.");
   summary(CHAT_K, 75, 85, "은빛 열쇠 약속 항구");
   summary(CHAT_K, 86, 90, "은빛 열쇠 약속 등대");
+
+  // Query-matched middle turn: only T18 contains the query tokens.
+  for (let turn = 1; turn <= 15; turn += 1) {
+    insertTurn(CHAT_M, turn, `filler ${turn}`, `filler ${turn}`);
+  }
+  for (let turn = 16; turn <= 20; turn += 1) {
+    insertTurn(
+      CHAT_M,
+      turn,
+      `T${turn} routine question`,
+      turn === 18 ? "ordinary scene 은빛 열쇠 약속" : `T${turn} ordinary scene`
+    );
+  }
+  summary(CHAT_M, 16, 20, "은빛 열쇠에 관한 약속이 있었다.");
+
+  // Query-matched late span in a long assistant message.
+  for (let turn = 1; turn <= 19; turn += 1) {
+    insertTurn(CHAT_N, turn, `filler ${turn}`, `filler ${turn}`);
+  }
+  insertTurn(CHAT_N, 20, "T20 routine question", `${"서술 ".repeat(500)}은빛 열쇠 약속`);
+  summary(CHAT_N, 20, 20, "은빛 열쇠에 관한 약속이 있었다.");
 });
 
 after(() => {
@@ -432,6 +455,32 @@ describe("B63 comparison-only memory path", () => {
     assert.ok(hit.originalExcerpt.includes("MIDDLE_QUOTE_T18"));
     assert.ok(hit.promptLine.includes("MIDDLE_QUOTE_T18"));
     assert.ok(hit.summary.length >= hit.summaryInPrompt.length);
+  });
+
+  it("selects only the query-matched middle turn", () => {
+    const result = searchPastTurnSummaries({
+      chatId: CHAT_M,
+      query: "은빛 열쇠",
+    });
+    assert.equal(result.hits.length, 1);
+    const hit = result.hits[0]!;
+    assert.ok(result.text.includes("은빛 열쇠"));
+    assert.ok(hit.originalSpans.length > 0);
+    assert.ok(hit.originalSpans.every((span) => span.turnNumber === 18));
+    assert.ok(hit.originalSpans.some((span) => span.matchedTokens.length > 0));
+  });
+
+  it("selects a late query match in a long message", () => {
+    const result = searchPastTurnSummaries({
+      chatId: CHAT_N,
+      query: "은빛 열쇠",
+    });
+    assert.equal(result.hits.length, 1);
+    const hit = result.hits[0]!;
+    const span = hit.originalSpans.find((entry) => entry.text.includes("은빛 열쇠"));
+    assert.ok(span);
+    assert.ok(span!.start > 1000);
+    assert.ok(result.text.includes("은빛 열쇠"));
   });
 
   it("keeps a late quote from a long original message in the prompt excerpt", () => {
