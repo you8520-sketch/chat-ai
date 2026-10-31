@@ -1367,8 +1367,15 @@ describe("G6-2A-R1 full authoring-mode execution", () => {
     for (const brief of portfolio.portfolio) brief.adultCandidate = adult;
     const voice = JSON.parse(response("19-g5-horror-dry-character_bible_voice.json")) as {
       nsfw: boolean;
+      speech: OfficialCharacterBible["speech"];
       publicProfile: OfficialCharacterBible["publicProfile"];
     };
+    // Reuse the committed speech-only repair rather than the pre-repair
+    // 131-character description in response 19.
+    const speechRepair = JSON.parse(response("21-g5-horror-dry-character_bible_voice.json")) as {
+      speech: OfficialCharacterBible["speech"];
+    };
+    voice.speech = speechRepair.speech;
     voice.nsfw = adult;
     voice.publicProfile.tags = brokenTags ? [...groundedTags, "꿩뿔별똥망토"] : [...groundedTags];
     const bonds = JSON.parse(response("20-g5-horror-dry-character_bible_bonds.json")) as {
