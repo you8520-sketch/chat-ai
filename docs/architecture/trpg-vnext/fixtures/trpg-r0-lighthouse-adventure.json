@@ -1,0 +1,171 @@
+{
+  "schema": "trpg-r0.local-play-fixture.v1",
+  "template": {
+    "title": "등대의 마지막 불빛",
+    "summary": "폭풍이 지나간 새벽, 안개에 잠긴 항구의 등대가 꺼져 있다. 뱃사공 우철은 등대 불을 켜면 딸이 돌아오지 않는다고 믿는다.",
+    "content": "부두에는 낡은 오두막과 반쯤 가라앉은 난파선, 그리고 꺼진 등대가 있다. 등대 불을 다시 밝혀 안개 속 배들을 인도하라.",
+    "secretContent": "뱃사공 우철의 딸은 십 년 전 폭풍에 배와 함께 사라졌다. 그는 등대 불이 꺼져 있으면 딸이 돌아온다고 믿고 일부러 등을 돌보지 않았다. 등대지기 민수는 마지막 폭풍에 불을 지키다 익사했고, 그 원한이 그림자가 되었다. 불을 밝히면 그림자는 물러나고, 우철은 딸을 보내 줄 수 있다.",
+    "visibility": "private",
+    "startInventory": ["낡은 손전등"],
+    "defaultPcStats": { "str": 7, "dex": 10, "con": 8, "int": 7, "wis": 7, "cha": 6 },
+    "statKeys": ["str", "dex", "con", "int", "wis", "cha"],
+    "npcs": [
+      {
+        "npcKey": "npc_wook",
+        "role": "supporting",
+        "name": "뱃사공 우철",
+        "description": "마른 노인. 한쪽 눈이 흐리고, 낡은 삿갓을 눌러썼다. 손때 묻은 밧줄을 계속 만지작거린다.",
+        "greeting": "이 밤에 등대에 가려는 사람은 오래간만이군. …그 불은 켜면 안 되는 거야.",
+        "systemPrompt": "자기 딸이 등대 불이 꺼져 있으면 돌아온다고 믿는다. 플레이어를 해치려는 의도는 없지만, 등대를 건드리려 하면 두려움과 분노로 입을 닫는다. 플레이어가 딸의 이야기를 존중하면 난파선과 등대의 단서를 흘린다. 플레이어의 대사나 선택을 대신 만들지 않는다.",
+        "stats": null
+      },
+      {
+        "npcKey": "npc_shadow",
+        "role": "boss",
+        "name": "등대의 그림자",
+        "description": "젖은 등대지기 제복을 입은 형체. 얼굴은 물에 젖은 천처럼 흔들린다.",
+        "greeting": "……불을…… 다시…… 켜지…… 마…….",
+        "systemPrompt": "익사한 등대지기 민수의 원한. 등대 불을 끄려는 자에게는 적대적이고, 불을 밝히려는 자에게는 두려움과 갈망을 동시에 보인다. 직접 HP를 선언하지 않고, 서버가 준 THREAT_STRIKE 결과만 따른다.",
+        "stats": null
+      }
+    ],
+    "scenarioPlan": {
+      "version": 1,
+      "startingSituation": "폭풍이 지나간 새벽, 안개에 잠긴 부두. 등대 불이 꺼져 있고, 뱃사공 우철이 오두막 앞에서 낡은 밧줄을 고치고 있다.",
+      "centralConflict": "등대 불을 다시 밝혀야 하지만, 뱃사공은 불을 켜면 딸이 돌아오지 않는다고 믿어 협조를 망설인다. 난파선 선창에는 열쇠와 기름이 있고, 등대 기계실에는 익사한 등대지기의 그림자가 있다.",
+      "goal": "등대 기계실에 도착해 등대 불을 다시 밝히고, 뱃사공 우철과 작별한다.",
+      "secret": "우철의 딸은 십 년 전 폭풍에 배와 함께 사라졌다. 우철은 불이 꺼져 있으면 딸이 돌아온다고 믿는다. 등대지기 민수는 마지막 폭풍에 불을 지키다 익사했고, 그 원한이 그림자가 되었다. 불을 밝히면 그림자는 물러나고, 우철은 딸을 보내 줄 수 있다.",
+      "endingConditions": ["등대 기계실에서 등대 불을 밝힌다.", "뱃사공 우철과 작별하고 부두를 떠난다."],
+      "majorEvents": [
+        "뱃사공이 등대 불을 끄면 딸이 돌아온다는 이야기를 꺼낸다.",
+        "난파선 선창에서 놋쇠 열쇠와 등대 기름을 찾는다.",
+        "등대 기계실에서 그림자가 습격한다.",
+        "등대 불이 켜지고 안개 너머 배들의 뱃고동이 들린다."
+      ],
+      "clues": [
+        "뱃사공의 낡은 장부에 '등대지기 민수, 마지막 등불'이라는 글귀가 번져 있다.",
+        "우철의 딸은 십 년 전 폭풍에 배를 잃었다.",
+        "등대지기는 마지막까지 불을 지키다 익사했다.",
+        "놋쇠 열쇠는 난파선 선창의 궤짝에 있다."
+      ],
+      "forbiddenEvents": [
+        "플레이어가 선택하지 않은 이동·작별·아이템 수령을 완료형으로 서술하지 않는다.",
+        "뱃사공을 플레이어 대신 움직이거나 플레이어의 대사를 대신 말하지 않는다.",
+        "등대 불을 밝히기 전에 항구가 구원되었다고 서술하지 않는다."
+      ],
+      "boss": "등대의 그림자 — 익사한 등대지기 민수의 원한",
+      "specialRules": ["등대 불을 밝히는 최종 행동은 서버가 확정한 위치·아이템·판정 결과를 따른다."],
+      "difficulty": "normal",
+      "climax": "그림자가 등의 불을 끄려는 순간, 뱃사공이 문을 열고 들어와 '불을 켜라'고 외친다.",
+      "endingCandidates": ["등대 불을 밝히고 뱃사공과 작별한다.", "불을 밝히지 못한 채 안개 속으로 돌아간다."],
+      "factionChanges": [],
+      "gmDirection": "뱃사공 우철은 자기 목적(딸을 기다리는 일)에 따라 움직인다. 플레이어가 존중하면 협조하고, 위협하면 입을 닫는다. 그림자는 등대지기의 원한이며 불을 밝히면 물러난다. 목표는 하나만 유지하고 추가 목표를 만들지 않는다. 마지막 장면은 작별과 함께 닫고 다음 행동을 묻지 않는다.",
+      "playLength": "short",
+      "encounters": [
+        {
+          "id": "beacon_shadow",
+          "name": "등대의 그림자",
+          "kind": "enemy",
+          "damageClass": "LIGHT",
+          "activateRound": 1,
+          "maxStrikes": 1,
+          "hitDc": 12,
+          "location": "등대 기계실"
+        }
+      ],
+      "adventure": {
+        "start": "pier",
+        "places": [
+          { "key": "pier", "name": "안개 부두", "summary": "낡은 부두와 뱃사공의 오두막. 안개가 발목을 감싼다.", "role": "start" },
+          { "key": "hut", "name": "뱃사공의 오두막", "summary": "그물과 등잔, 낡은 장부가 있는 오두막.", "role": "hub" },
+          { "key": "wreck", "name": "난파선 선창", "summary": "모래가 반쯤 덮은 배의 선창. 젖은 나무 냄새가 진하다.", "role": "site" },
+          { "key": "lighthouse", "name": "등대 기계실", "summary": "녹슨 톱니와 꺼진 등잔이 있는 기계실.", "role": "goal" }
+        ],
+        "links": [
+          { "from": "pier", "to": "hut" },
+          { "from": "hut", "to": "wreck" },
+          { "from": "wreck", "to": "lighthouse", "opensBy": "brass_key" }
+        ],
+        "events": [
+          {
+            "key": "tide_clue",
+            "place": "hut",
+            "trigger": "search",
+            "kind": "clue",
+            "text": "낡은 장부에 '등대지기 민수, 마지막 등불'이라는 글귀가 번져 있다."
+          },
+          {
+            "key": "brass_key",
+            "place": "wreck",
+            "trigger": "search",
+            "kind": "item",
+            "text": "모래에 반쯤 묻힌 궤짝에서 놋쇠 열쇠가 나온다.",
+            "item": "놋쇠 열쇠",
+            "requires": ["tide_clue"]
+          },
+          {
+            "key": "lamp_oil",
+            "place": "wreck",
+            "trigger": "search",
+            "kind": "item",
+            "text": "선창 벽의 숨은 칸에서 등대 기름 한 통을 꺼낸다.",
+            "item": "등대 기름",
+            "requires": ["tide_clue"]
+          },
+          {
+            "key": "shadow",
+            "place": "lighthouse",
+            "trigger": "enter",
+            "kind": "hazard",
+            "text": "기계실 문이 열리자 젖은 발자국이 어둠 속에서 나타난다."
+          }
+        ]
+      }
+    }
+  },
+  "goalSeed": null,
+  "playPlan": [
+    {
+      "round": 1,
+      "body": "뱃사공의 오두막으로 들어가 등대 불에 대해 묻고, 낡은 장부를 살핀다.",
+      "commands": [
+        { "op": "move", "label": "뱃사공의 오두막" },
+        { "op": "search", "depth": "normal" }
+      ],
+      "purpose": "NPC agency + clue"
+    },
+    {
+      "round": 2,
+      "body": "난파선 선창으로 내려가 궤짝과 벽의 숨은 칸을 뒤진다.",
+      "commands": [
+        { "op": "move", "label": "난파선 선창" },
+        { "op": "search", "depth": "normal" }
+      ],
+      "purpose": "exploration reward + route opening"
+    },
+    {
+      "round": 3,
+      "body": "놋쇠 열쇠로 등대 문을 열고 기계실로 올라간다.",
+      "commands": [{ "op": "move", "label": "등대 기계실" }],
+      "purpose": "goal reach + hazard"
+    },
+    {
+      "round": 4,
+      "body": "등대 심지를 돌려 불을 밝히고, 뱃사공에게 마지막 작별 인사를 한다.",
+      "commands": [],
+      "purpose": "success/failure divergence + ending"
+    },
+    {
+      "round": 5,
+      "body": "불이 켜진 등대 아래에서 뱃사공과 작별하고 부두를 떠난다.",
+      "commands": [],
+      "purpose": "fallback ending round if R4 does not close"
+    },
+    {
+      "round": 6,
+      "body": "불이 켜진 등대를 뒤로하고, 뱃사공에게 마지막 손을 흔든 뒤 부두로 내려간다.",
+      "commands": [],
+      "purpose": "post-confirm epilogue and finish"
+    }
+  ]
+}
