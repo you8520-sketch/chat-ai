@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { answerGoalClaim, type TrpgGoalAnswer, type TrpgGoalAnswerResult } from "./campaignGoals";
 import { CampaignGoalsConflictError, loadCampaignLedger, loadStoredGoalsJson, persistGoalsIfUnchanged } from "./campaignLedger";
 import { loadTrpgSnapshot } from "./engineSnapshot";
+import { finalizeHostConfirmedEnding } from "./endingDecision";
 import { claimMatchesCommittedMessage } from "./goalClaimProvenance";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 import { loadCampaign, loadParticipants } from "./store";
@@ -64,6 +65,13 @@ export function answerTrpgGoalClaim(
       if (result.outcome === "rejected") throw new Error(REJECTION_MESSAGE[result.reason]);
       if (!("goals" in result)) return result.outcome;
       if (!persistGoalsIfUnchanged(db, opts.campaignId, goalsJson, result.goals)) throw new CampaignGoalsConflictError();
+      if (opts.decision === "confirm") {
+        finalizeHostConfirmedEnding(db, {
+          campaignId: opts.campaignId,
+          goalId: opts.goalId,
+          claimedRound: opts.claimedRound,
+        });
+      }
       return result.outcome;
     })
     .immediate();

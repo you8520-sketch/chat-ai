@@ -1158,10 +1158,6 @@ describe("v2 adventure ending commit", () => {
     ]) {
       assert.equal(hasIndependentItemAction(allowed), false, allowed);
     }
-    assert.throws(
-      () => submitTrpgAction(db, { campaignId, userId: 1, body: "중앙 테이블로 이동한다. 메밀 봉투를 챙긴다." }),
-      /일반 행동입니다/
-    );
     assert.equal(pendingCount(), 0);
     assert.equal(lockedCount(), 0);
     assert.equal(hostLocation(), "출입문");

@@ -18,6 +18,7 @@ function TrpgSheet(props) {
   const effects = list(props.effects);
   const inventory = list(props.inventory);
   const mechanics = list(props.mechanics);
+  const combat = props.combat && Array.isArray(props.combat.encounters) ? props.combat.encounters : [];
   const place = text(props.place);
   const note = text(props.modifiersNote);
   const pct = Math.max(0, Math.min(100, num(props.hpPercent)));
@@ -82,6 +83,9 @@ function TrpgSheet(props) {
             {text(props.name)}
           </p>
           <p style={{ margin: 0, fontSize: 12, color: "#71717a" }}>Lv {num(props.level)}</p>
+          <p style={{ margin: 0, fontSize: 12, color: "#a1a1aa" }}>
+            XP {num(props.xpIntoLevel)} · 다음까지 {num(props.xpToNextLevel)} · 배분점 {num(props.statPoints)}
+          </p>
         </div>
         <p style={{ margin: 0, fontSize: 12, color: "#d4d4d8", fontVariantNumeric: "tabular-nums" }}>
           HP {num(props.hp)}/{num(props.maxHp)}
@@ -128,6 +132,23 @@ function TrpgSheet(props) {
               <li key={index + ":" + text(line)}>{text(line)}</li>
             ))}
           </ul>
+        </div>
+      ) : null}
+      {combat.length > 0 ? (
+        <div data-trpg-combat="" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <p style={label}>전투</p>
+          {combat.map((encounter) => (
+            <div key={text(encounter.key)} data-trpg-encounter={text(encounter.key)} style={{ border: "1px solid rgba(251,113,133,0.25)", borderRadius: 8, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+              <p style={{ margin: 0, fontSize: 12, color: "#fecdd3", fontWeight: 600 }}>
+                {text(encounter.name)} · {encounter.ended === true ? "종료" : "진행"} · {text(encounter.location)}
+              </p>
+              {list(encounter.strikes).map((strike, index) => (
+                <p key={index} data-trpg-strike={String(num(strike.d20))} style={{ margin: 0, fontSize: 12, color: "#fda4af", fontVariantNumeric: "tabular-nums" }}>
+                  d20 {num(strike.d20)} vs DC {num(strike.dc)} · {strike.hit === true ? "명중" : "빗나감"} · {text(strike.diceExpression)} [{list(strike.diceRolls).join(",")}] = {num(strike.diceTotal)} × {num(strike.damageUnit)} = {num(strike.amount)} 피해 · HP {num(strike.hpBefore)}→{num(strike.hpAfter)}
+                </p>
+              ))}
+            </div>
+          ))}
         </div>
       ) : null}
       <div>

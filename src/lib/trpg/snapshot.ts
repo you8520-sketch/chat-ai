@@ -98,6 +98,8 @@ export type TrpgCampaignSnapshot = {
   billingMode: TrpgBillingMode;
   billingModeLocked: boolean;
   campaignStatus: string;
+  /** Server-side ending decision stored on the latest committed GM round. */
+  endingDecision?: { kind: string; reason?: string } | null;
   maxSlots: number;
   pointPool: number;
   statDefs: TrpgStatDefinition[];
@@ -177,6 +179,10 @@ export type TrpgCampaignSnapshot = {
   hasPendingGmResult?: boolean;
   ongoingEffects?: TrpgPublicOngoingEffect[];
   mechanicsLines?: TrpgMechanicsHudLine[];
+  /** Server-owned threat/strike projection for the minimal combat JSX. */
+  combat?: TrpgPublicCombat | null;
+  /** Unexecuted acts from the viewer's last plan, with server reasons. */
+  actionPlanWarnings?: TrpgActionPlanWarning[];
   /** Server-authoritative safe-rest eligibility. UI must not re-parse the scene. */
   safeRest?: TrpgSafeRestSnapshot;
   showRecoveryHint?: boolean;
@@ -209,6 +215,43 @@ export type TrpgPublicOngoingEffect = {
 export type TrpgMechanicsHudLine = {
   participantId: number;
   text: string;
+};
+
+export type TrpgPublicCombatStrike = {
+  encounterId: string;
+  name: string;
+  kind: "enemy" | "hazard";
+  targetParticipantId: number;
+  d20: number;
+  dc: number;
+  hit: boolean;
+  damageClass: string;
+  diceExpression: string;
+  diceRolls: number[];
+  diceTotal: number;
+  damageUnit: number;
+  amount: number;
+  hpBefore: number;
+  hpAfter: number;
+};
+
+export type TrpgPublicCombat = {
+  encounters: Array<{
+    /** Opaque display key; never the internal scenario encounter id. */
+    key: string;
+    name: string;
+    kind: "enemy" | "hazard";
+    location: string;
+    ended: boolean;
+    strikes: TrpgPublicCombatStrike[];
+  }>;
+};
+
+export type TrpgActionPlanWarning = {
+  index: number;
+  kind: string;
+  reason: string;
+  evidence: string;
 };
 
 export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {

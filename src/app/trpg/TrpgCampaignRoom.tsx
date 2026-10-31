@@ -358,6 +358,7 @@ export default function TrpgCampaignRoom({
   onRemoveExploration,
   onClearExploration,
   onSetInventoryEquipped,
+  onAllocateStat,
   onRetryBots,
   onRetryGm,
   onReroll,
@@ -403,6 +404,7 @@ export default function TrpgCampaignRoom({
   onRemoveExploration?: (index: number) => void;
   onClearExploration?: () => void;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
+  onAllocateStat?: (statKey: string) => void;
   onRetryBots: () => void;
   onRetryGm: () => void;
   onReroll: (roundNumber: number) => void;
@@ -2418,6 +2420,7 @@ export default function TrpgCampaignRoom({
           onSendAction={onSendAction}
           onSendParty={onSendParty}
           onSetInventoryEquipped={onSetInventoryEquipped}
+          onAllocateStat={onAllocateStat}
           onOcclusionChange={onDockOcclusion}
           liveStatus={processStatus}
           liveStatusStage={processStage}

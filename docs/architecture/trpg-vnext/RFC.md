@@ -8,6 +8,8 @@
 
 증거: `baseline/README.md`, `baseline/baseline-796d279f.json`, `scripts/trpg-vnext-baseline.ts`, `fixtures/action-corpus.json`(text-only baseline, 변경 없음), `fixtures/action-context-pairs.json`(신규), `fixtures/outcome-contract-cases.json`(신규).
 
+> **R0 update (2026-10-31):** 이 RFC의 “해석은 열고 권한은 닫는다” 원칙을 유지하면서, 첫 구현 슬라이스를 `FUN-FIRST-PROGRESSION.md`와 `OWNER-MAP.md`로 좁혔다. R0는 (1) 한 번의 typed `ActionProposal`, (2) 서버 `ActionPlan`/resolve, (3) 서버 `EndingDecision`, (4) 기존 JSX/저장 구조 재사용을 제안한다. JEV는 action/commitment proposal로만 비교했고(20-case), 3-way ending에는 부적합했다. 상세 원문·비교는 `hav-rp-evidence-private`의 `trpg-r0-2026-10-31-fun-progression` 케이스에 있다.
+
 ---
 
 ## 0. 결론과 리뷰 반영표

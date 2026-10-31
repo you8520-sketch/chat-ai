@@ -181,7 +181,7 @@ describe("selectedStat live owner", () => {
     assert.doesNotMatch(engine, /normalizeTrpgSelectedStat/);
     assert.match(
       engine,
-      /upsertLockedAction\(db, opts\.roundId, bot\.id, spoken, parseTrpgBotAction\(spoken\)\.actionType, null, "bot_model"\)/
+      /lockBotAction\(spoken, parseTrpgBotAction\(spoken\)\.actionType\)/
     );
   });
 

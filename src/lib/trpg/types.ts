@@ -171,6 +171,9 @@ export type TrpgSheetSnapshot = {
   name: string;
   playerName: string;
   level: number;
+  /** Campaign-sheet progression; optional for older/synthetic fixtures. */
+  xp?: number;
+  statPoints?: number;
   hp: number;
   maxHp: number;
   stats: Record<string, number>;

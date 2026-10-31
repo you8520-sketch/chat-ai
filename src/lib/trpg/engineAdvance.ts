@@ -22,6 +22,16 @@ import {
   toModelUsageCalls,
   type TrpgRoundUsageEntry,
 } from "./roundUsage";
+import { grantTrpgCampaignCompletionXp } from "./progression";
+import {
+  loadActionPlan,
+  planTrpgAction,
+  proposeTrpgAction,
+  type TrpgActionPlan,
+} from "./actionContract";
+import { evaluateTrpgEndingDecision, humanParticipantIds, loadRoundActionPlans } from "./endingDecision";
+import { applyPlanItemEffects } from "./actionPlanApply";
+import { hasIndependentItemAction } from "./actionSemantics";
 import { isTrpgActionType, pickStatForAction, resolveServerHumanActionType } from "./actionTypes";
 import { TrpgAdventureCanonError } from "./adventure";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
@@ -95,7 +105,6 @@ import {
   type ExplorationState,
 } from "./explorationMap";
 import type { ExplorationCommand } from "./explorationPublic";
-import { hasIndependentItemAction } from "./actionSemantics";
 import {
   declaredMovementGoals,
   describeMovementGoal,
@@ -298,7 +307,7 @@ import {
   loadFrozenAdjudicationDecision,
 } from "./roundAdjudication";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
-import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase, type TrpgSheetSnapshot } from "./types";
 import { isTrpgRoundPhase, isTrpgSuccessTier, TRPG_LEDGER_QUEST_MAX } from "./types";
 import {
   clearGmNarrationDraft,
@@ -574,7 +583,14 @@ export function submitTrpgAction(
   if (!round || round.phase !== "ACTION_INPUT") {
     throw new Error("지금은 행동을 제출할 수 없습니다.");
   }
+  // Duplicate/idempotency is checked before any AP reservation or pricing.
+  const existingLocked = db
+    .prepare(`SELECT locked FROM trpg_action_submissions WHERE round_id=? AND participant_id=?`)
+    .get(round.id, me.id) as { locked: number } | undefined;
+  if (existingLocked?.locked === 1) throw new Error("이미 제출했습니다.");
+
   const commands = readExplorationCommands(opts.explorationCommands);
+  const offers = loadTrpgSeatItemOffers(db, opts.campaignId, round.round_number, me.id)?.items ?? [];
   const accepted = resolveTrpgItemAcceptance(
     loadTrpgSeatItemOffers(db, opts.campaignId, round.round_number, me.id),
     parseTrpgAcceptItemsRequest(opts.acceptItems)
@@ -583,59 +599,188 @@ export function submitTrpgAction(
   if (!typed && commands.length === 0 && !accepted) throw new Error("행동을 입력하세요.");
   const text = typed || (accepted && commands.length === 0 ? formatAcceptedItemsAction(accepted.items) : "");
   assertTrpgActionMaxChars(text);
-  const actionType = resolveServerHumanActionType(text);
   const origin = parseTrpgInputOrigin(opts.inputOrigin);
   const mapped = loadExplorationState(db, opts.campaignId);
-  const myLocation =
-    (
-      db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(me.id) as
-        | { location?: string | null }
-        | undefined
-    )?.location?.trim() ?? "";
-  // Absent explorationCommands is a general submit. v2 does not turn that into an
-  // exploration submit when the body also carries a non-move action.
-  const explicitExploration = commands.length > 0;
-  const inferredMoves =
-    !explicitExploration && mapped ? explorationCommandsFromMovementBody(mapped.map, text, myLocation) : [];
-  // A terminal exit is still an explicit exploration command. Let its farewell/flavor prose
-  // travel as the method note, but keep the move-plus-other-action refusal for every
-  // non-terminal movement. An independent item receipt/payment/use is never method prose.
-  const inferredDepartureOnly = inferredMoves.length > 0 && inferredMoves.every((command) => command.op === "depart");
-  const pricedCommands = explicitExploration ? commands : inferredMoves;
-  const commandsIncludeDepart = pricedCommands.some((command) => command.op === "depart");
-  if (mapped?.version === 2 && commandsIncludeDepart && hasIndependentItemAction(text)) {
+  const mySheet = loadSheetSnapshots(db, opts.campaignId).find((sheet) => sheet.participantId === me.id);
+  const myLocation = mySheet?.location?.trim() ?? "";
+  const campaignContext = loadCampaignContext(db, opts.campaignId);
+  const activeEncounter = governedEncounters(campaignContext).find(
+    (encounter) => encounter.location.trim() === myLocation
+  );
+  const knownRooms = mapped?.map.rooms.map((room) => ({ id: room.id, name: room.name ?? room.id })) ?? [];
+  const proposal = proposeTrpgAction({
+    body: text,
+    actorParticipantId: me.id,
+    participantKind: "human",
+    partyNames: parts.filter((p) => p.id !== me.id).map((p) => p.display_name),
+    inventory: mySheet?.inventory ?? [],
+    offers,
+    commands,
+    acceptedItems: accepted?.items ?? [],
+    knownRooms,
+    movementState: mapped,
+    fromRoomId: myLocation,
+    activeEncounterName: activeEncounter?.name ?? null,
+    source: "human_text",
+  });
+  const plan = planTrpgAction({
+    proposal,
+    state: mapped,
+    roundNumber: round.round_number,
+    fromRoomId: myLocation,
+    inventory: mySheet?.inventory ?? [],
+    offers,
+    activeEncounterName: activeEncounter?.name ?? null,
+    participantKind: "human",
+    actionType: opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : null,
+  });
+  const planned = plan.acts.filter((act) => act.status === "planned");
+  const hasDepart =
+    commands.some((command) => command.op === "depart") ||
+    (mapped
+      ? explorationCommandsFromMovementBody(mapped.map, text, myLocation).some(
+          (command) => command.op === "depart"
+        )
+      : false);
+  if (hasDepart && hasIndependentItemAction(text)) {
     throw new Error(
       "퇴장과 별도의 아이템 수령·결제·사용은 한 번에 보내지 않습니다. 퇴장은 탐험 대기열에서, 아이템 행동은 대기열을 비운 뒤 따로 보내세요. 입력은 그대로 두었습니다."
     );
   }
-  if (mapped?.version === 2 && inferredMoves.length > 0 && !inferredDepartureOnly && omitLiveMovementClauses(text)) {
+  if (planned.length === 0) {
+    const blocking = plan.unexecuted.find((row) => !row.reason.startsWith("commitment:"));
+    if (!blocking && text.trim()) {
+      // A negated/conditional/quoted/mentioned-only submission is still a
+      // recorded free action. It executes no act, but the GM sees the text and
+      // the plan warnings show why nothing was taken as a committed act.
+      upsertLockedAction(
+        db,
+        round.id,
+        me.id,
+        text,
+        resolveServerHumanActionType(text),
+        null,
+        "human",
+        opts.idempotencyKey,
+        origin,
+        accepted,
+        plan
+      );
+      return;
+    }
+    const reason = plan.unexecuted[0]?.reason ?? "no_planned_action";
+    const messages: Record<string, string> = {
+      ap: "이동력이 부족합니다.",
+      route: "연결되지 않은 곳으로는 이동할 수 없습니다.",
+      unknown_destination: "이동할 장소를 찾지 못했습니다.",
+      no_map: "이 캠페인에는 탐험 지도가 없습니다.",
+      item_missing: "사용할 아이템을 가지고 있지 않습니다.",
+      item_not_available: "수령할 수 없는 아이템입니다.",
+      needs_acceptance: "아이템 수령은 수령 확인이 필요합니다.",
+      no_active_threat: "지금 공격하거나 방어할 위협이 없습니다.",
+      prerequisite_failed: "앞선 행동이 실패해 뒤 행동을 실행하지 않았습니다.",
+    };
     throw new Error(
-      "탐험 대기열이 비어 있어 이 제출은 일반 행동입니다. 이동과 다른 행동을 한 번에 보내지 않습니다. 이동은 탐험 대기열에 넣고, 구매는 대기열을 비운 뒤 따로 보내세요. 입력은 그대로 두었습니다."
+      proposal.clarification ??
+        messages[reason] ??
+        (/[가-힣]/.test(reason)
+          ? reason
+          : `행동을 실행할 수 없습니다 (${reason}). 입력은 그대로 두었습니다.`)
     );
   }
-  const inferredDepartureMethod =
-    inferredDepartureOnly && omitLiveMovementClauses(text) === "" ? "" : text;
-  if (pricedCommands.length > 0) {
+  const isExplorationAct = (act: (typeof planned)[number]): boolean =>
+    act.kind === "move" ||
+    (act.kind === "search" && act.source === "ui_command" && Boolean(mapped));
+  const planCommands: ExplorationCommand[] = planned
+    .filter(isExplorationAct)
+    .map((act) =>
+      act.kind === "search"
+        ? {
+            op: "search" as const,
+            depth: (act.searchDepth ?? "normal") as "normal" | "careful",
+          }
+        : act.depart
+          ? { op: "depart" as const }
+          : { op: "move" as const, roomId: act.destinationRoomId ?? "" }
+    )
+    .filter((command) => command.op !== "move" || command.roomId);
+  const planActionType = (() => {
+    // A non-item chip is authoritative for this submission. Item consumption
+    // is still owned by a committed consumption clause.
+    if (
+      opts.actionType &&
+      isTrpgActionType(opts.actionType) &&
+      opts.actionType !== "use_item" &&
+      opts.actionType !== "free" &&
+      !planned.some((act) => act.kind === "item_use")
+    ) {
+      return opts.actionType;
+    }
+    // A committed consumption clause is the adjudicated item action; a
+    // sibling attack is reported as unadjudicated in the GM wire and does not
+    // steal the action type.
+    if (planned.some((act) => act.kind === "item_use")) return "use_item";
+    const check = planned.find((act) => act.needsCheck);
+    if (check) {
+      return check.kind === "attack"
+        ? "attack"
+        : check.kind === "defend"
+          ? "defend"
+          : check.kind === "search"
+            ? "investigate"
+            : "free";
+    }
+    const first = planned[0];
+    const derived = !first
+      ? resolveServerHumanActionType(text)
+      : first.kind === "attack"
+        ? "attack"
+        : first.kind === "defend"
+          ? "defend"
+          : first.kind === "search"
+            ? "investigate"
+            : first.kind === "item_take"
+              ? "use_item"
+              : "free";
+    // The legacy action chip can request a check (attack/defend/investigate)
+    // when the prose is pure dialogue, but it cannot force item consumption:
+    // the committed consumption clause is the item-use owner.
+    if (derived === "free") {
+      if (
+        opts.actionType &&
+        isTrpgActionType(opts.actionType) &&
+        opts.actionType !== "use_item"
+      ) {
+        return opts.actionType;
+      }
+      return resolveServerHumanActionType(text);
+    }
+    return derived;
+  })();
+
+  if (planCommands.length > 0) {
     db.transaction(() => {
       const prepared = prepareLockedExploration(db, {
         campaignId: opts.campaignId,
         roundId: round.id,
         participantId: me.id,
-        commands: pricedCommands,
-        freeText: inferredDepartureMethod,
+        commands: planCommands,
+        freeText: text,
       });
-      assertTrpgActionMaxChars(prepared.body);
+      const body = prepared.body;
+      assertTrpgActionMaxChars(body);
       upsertLockedAction(
         db,
         round.id,
         me.id,
-        prepared.body,
-        prepared.actionType,
+        body,
+        planActionType,
         null,
         "human",
         opts.idempotencyKey,
         origin,
-        accepted
+        accepted,
+        plan
       );
       saveExplorationState(db, opts.campaignId, prepared.state);
     })();
@@ -645,18 +790,60 @@ export function submitTrpgAction(
       round.id,
       me.id,
       text,
-      actionType,
+      planActionType,
       null,
       "human",
       opts.idempotencyKey,
       origin,
-      accepted
+      accepted,
+      plan
     );
   }
   const humanActors = actorsForRound(db, parts, round.id).filter((a) => a.kind === "human");
   if (allRequiredHumanActionsLocked(humanActors)) {
     anchorTrpgProcessTimer(db, round.id);
   }
+}
+
+function buildBotActionPlan(
+  db: Database.Database,
+  campaignId: number,
+  roundNumber: number,
+  bot: TrpgParticipantRow,
+  body: string,
+  commands: readonly ExplorationCommand[],
+  map: ExplorationState | null,
+  sheets: readonly TrpgSheetSnapshot[]
+): TrpgActionPlan | null {
+  const self = sheets.find((sheet) => sheet.participantId === bot.id);
+  if (!self) return null;
+  const context = loadCampaignContext(db, campaignId);
+  const encounter = governedEncounters(context).find(
+    (row) => row.location.trim() === self.location.trim()
+  );
+  const proposal = proposeTrpgAction({
+    body,
+    actorParticipantId: bot.id,
+    participantKind: "ai_character",
+    partyNames: sheets.filter((sheet) => sheet.participantId !== bot.id).map((sheet) => sheet.name),
+    inventory: self.inventory,
+    commands,
+    knownRooms: map?.map.rooms.map((room) => ({ id: room.id, name: room.name ?? room.id })) ?? [],
+    movementState: map,
+    fromRoomId: self.location,
+    activeEncounterName: encounter?.name ?? null,
+    source: "bot_text",
+  });
+  return planTrpgAction({
+    proposal,
+    state: map,
+    roundNumber,
+    fromRoomId: self.location,
+    inventory: self.inventory,
+    offers: [],
+    activeEncounterName: encounter?.name ?? null,
+    participantKind: "ai_character",
+  });
 }
 
 function upsertLockedAction(
@@ -669,7 +856,8 @@ function upsertLockedAction(
   source: TrpgActionSource,
   idempotencyKey?: string | null,
   inputOrigin: TrpgInputOrigin = "manual",
-  accepted: TrpgAcceptedItems | null = null
+  accepted: TrpgAcceptedItems | null = null,
+  plan?: TrpgActionPlan | null
 ): void {
   const existing = db
     .prepare(`SELECT id, locked FROM trpg_action_submissions WHERE round_id=? AND participant_id=?`)
@@ -683,16 +871,37 @@ function upsertLockedAction(
   if (existing) {
     db.prepare(
       `UPDATE trpg_action_submissions
-       SET body=?, action_type=?, selected_stat=?, locked=1, source=?, idempotency_key=?, input_origin=?, accepted_items_json=?, updated_at=datetime('now')
+       SET body=?, action_type=?, selected_stat=?, locked=1, source=?, idempotency_key=?, input_origin=?, accepted_items_json=?, action_plan_json=?, updated_at=datetime('now')
        WHERE id=?`
-    ).run(body, actionType, selectedStat, source, idempotencyKey ?? null, origin, acceptedJson, existing.id);
+    ).run(
+      body,
+      actionType,
+      selectedStat,
+      source,
+      idempotencyKey ?? null,
+      origin,
+      acceptedJson,
+      plan ? JSON.stringify(plan) : null,
+      existing.id
+    );
     return;
   }
   db.prepare(
     `INSERT INTO trpg_action_submissions
-      (round_id, participant_id, body, action_type, selected_stat, locked, source, idempotency_key, input_origin, accepted_items_json)
-     VALUES (?,?,?,?,?,1,?,?,?,?)`
-  ).run(roundId, participantId, body, actionType, selectedStat, source, idempotencyKey ?? null, origin, acceptedJson);
+      (round_id, participant_id, body, action_type, selected_stat, locked, source, idempotency_key, input_origin, accepted_items_json, action_plan_json)
+     VALUES (?,?,?,?,?,1,?,?,?,?,?)`
+  ).run(
+    roundId,
+    participantId,
+    body,
+    actionType,
+    selectedStat,
+    source,
+    idempotencyKey ?? null,
+    origin,
+    acceptedJson,
+    plan ? JSON.stringify(plan) : null
+  );
 }
 
 export type AdvanceTrpgCampaignOpts = {
@@ -727,6 +936,9 @@ async function finalizeCommittedGmRound(
   ) {
     logStaleOwnerDiscard(opts.roundId, opts.leaseOwnerId, "finalize");
     throw new StaleGmGenerationOwnerError();
+  }
+  if (opts.campaignFinished) {
+    grantTrpgCampaignCompletionXp(db, campaign.id);
   }
   await sealDroppedTrpgRounds(db, campaign.id, deps?.memoryCall);
 }
@@ -1520,6 +1732,35 @@ async function generateBotActions(
             .join("\n\n")
         )
       : body;
+    const lockBotAction = (
+      body: string,
+      actionType: string,
+      commands: readonly ExplorationCommand[] = []
+    ): void => {
+      const plan = buildBotActionPlan(
+        db,
+        opts.campaign.id,
+        roundNumber,
+        bot,
+        body,
+        commands,
+        latestMap,
+        sheets
+      );
+      upsertLockedAction(
+        db,
+        opts.roundId,
+        bot.id,
+        body,
+        actionType,
+        null,
+        "bot_model",
+        undefined,
+        "manual",
+        null,
+        plan
+      );
+    };
     if (declared.length > 0) {
       try {
         spoken = db.transaction(() => {
@@ -1531,7 +1772,17 @@ async function generateBotActions(
             freeText: structuredPlanValid ? structuredFreeText : body,
           });
           assertTrpgActionMaxChars(prepared.body);
-          upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
+          const plan = buildBotActionPlan(
+            db,
+            opts.campaign.id,
+            roundNumber,
+            bot,
+            prepared.body,
+            declared,
+            latestMap,
+            sheets
+          );
+          upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model", undefined, "manual", null, plan);
           saveExplorationState(db, opts.campaign.id, prepared.state);
           return prepared.body;
         })();
@@ -1562,11 +1813,11 @@ async function generateBotActions(
           if (locked) {
             lockOutcome = "original-locked";
             spoken = locked;
-            upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+            lockBotAction(spoken, parseTrpgBotAction(spoken).actionType);
           } else {
             lockOutcome = "stay-fallback";
             spoken = stayWatchingInPlace(bot.display_name);
-            upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+            lockBotAction(spoken, "free");
           }
         } else {
           const priced = latestMap
@@ -1607,7 +1858,17 @@ async function generateBotActions(
                 if (Array.from(prepared.body).length > TRPG_ACTION_MAX_CHARS) {
                   throw new Error("행동이 너무 깁니다.");
                 }
-                upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model");
+                const plan = buildBotActionPlan(
+                  db,
+                  opts.campaign.id,
+                  roundNumber,
+                  bot,
+                  prepared.body,
+                  priced,
+                  latestMap,
+                  sheets
+                );
+                upsertLockedAction(db, opts.roundId, bot.id, prepared.body, prepared.actionType, null, "bot_model", undefined, "manual", null, plan);
                 saveExplorationState(db, opts.campaign.id, prepared.state);
                 return prepared.body;
               })();
@@ -1618,7 +1879,7 @@ async function generateBotActions(
               retryRejectCode = explorationRejectCode(retryError);
               lockOutcome = "stay-fallback";
               spoken = stayWatchingInPlace(bot.display_name);
-              upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+              lockBotAction(spoken, "free");
             }
           } else if (
             usableRemainder &&
@@ -1629,18 +1890,18 @@ async function generateBotActions(
               fallbackBranch = "priced-empty-remainder";
               lockOutcome = "original-locked";
               spoken = locked;
-              upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+              lockBotAction(spoken, parseTrpgBotAction(spoken).actionType);
             } else {
               fallbackBranch = "priced-empty";
               lockOutcome = "stay-fallback";
               spoken = stayWatchingInPlace(bot.display_name);
-              upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+              lockBotAction(spoken, "free");
             }
           } else {
             fallbackBranch = "priced-empty";
             lockOutcome = "stay-fallback";
             spoken = stayWatchingInPlace(bot.display_name);
-            upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+            lockBotAction(spoken, "free");
           }
         }
       }
@@ -1670,15 +1931,18 @@ async function generateBotActions(
       if (locked) {
         lockOutcome = "original-locked";
         spoken = locked;
-        upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+        const plan = buildBotActionPlan(db, opts.campaign.id, roundNumber, bot, spoken, [], latestMap, sheets);
+        upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model", undefined, "manual", null, plan);
       } else {
         lockOutcome = "stay-fallback";
         spoken = stayWatchingInPlace(bot.display_name);
-        upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model");
+        const plan = buildBotActionPlan(db, opts.campaign.id, roundNumber, bot, spoken, [], latestMap, sheets);
+        upsertLockedAction(db, opts.roundId, bot.id, spoken, "free", null, "bot_model", undefined, "manual", null, plan);
       }
     } else {
       if (structuredPlanValid) fallbackBranch = "structured-no-move";
-      upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model");
+      const plan = buildBotActionPlan(db, opts.campaign.id, roundNumber, bot, spoken, [], latestMap, sheets);
+      upsertLockedAction(db, opts.roundId, bot.id, spoken, parseTrpgBotAction(spoken).actionType, null, "bot_model", undefined, "manual", null, plan);
     }
     if (latestMap) {
       emitBotExplorationLockDiagnosticSafe(latestMap.map, text, {
@@ -1949,7 +2213,13 @@ async function runGmForRound(
     participantIds: sheets.map((sheet) => sheet.participantId),
     locations: seatLocationsForFinish(sheets, explorationPreview?.results),
     goals: goalLedger.goals,
-  });
+  }) ||
+    evaluateTrpgEndingDecision({
+      plans: loadRoundActionPlans(db, opts.roundId),
+      goals: goalLedger.goals,
+      humanParticipantIds: humanParticipantIds(db, campaign.id),
+      scenarioEndingConditions: resolvedPlan?.endingConditions,
+    }).kind === "end";
   const requestPlayerGoalRegistration = shouldRequestTrpgPlayerGoalRegistration({
     opening: opts.opening,
     regenerate: opts.regenerate,
@@ -2546,16 +2816,30 @@ function commitPendingGmResult(
   });
   foldAcceptedInventoryGrants(parsed.delta);
   const nextSheets = applied.ok ? applied.next : sheets;
-  const persistMechanics = applied.ok || mechanics?.complete === true;
+  const planItemEffects = applyPlanItemEffects(nextSheets, loadRoundActionPlans(db, opts.roundId), mechanics);
+  const planSheets = planItemEffects.effects.length > 0 ? planItemEffects.sheets : nextSheets;
+  const persistMechanics = applied.ok || mechanics?.complete === true || planItemEffects.effects.length > 0;
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
-  const endedProposals = parsed.delta.encountersEnded;
+  const serverEncounterEnds: string[] = [];
+  for (const sub of lockedSubs) {
+    if (!sub.tier || !isTrpgSuccessTier(sub.tier)) continue;
+    const plan = loadActionPlan(db, opts.roundId, sub.participantId);
+    const attack = plan?.acts.find((act) => act.status === "planned" && act.kind === "attack");
+    if (!attack) continue;
+    const seat = (persistMechanics ? planSheets : sheets).find((sheet) => sheet.participantId === sub.participantId);
+    const encounter = governedEncounters(campaignContext).find(
+      (row) => row.location.trim() === (seat?.location ?? "").trim()
+    );
+    if (encounter) serverEncounterEnds.push(encounter.id);
+  }
+  const endedProposals = [...(parsed.delta.encountersEnded ?? []), ...serverEncounterEnds];
   const encounterEnding =
     governedCampaign && !opts.opening && !opts.regenerate
       ? acceptEncountersEnded({
           proposed: endedProposals,
           encounters: governedEncounters(campaignContext),
           alreadyEnded: loadEndedEncounterIds(db, campaign.id, roundNumber),
-          seatLocations: [...sheets, ...nextSheets].map((sheet) => sheet.location),
+          seatLocations: [...sheets, ...planSheets].map((sheet) => sheet.location),
         })
       : { accepted: [] as string[], rejected: [] };
   const postGmOngoingSeeds = governedCampaign
@@ -2564,7 +2848,7 @@ function commitPendingGmResult(
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
   const endLocationBySeat = new Map(
-    (persistMechanics ? nextSheets : sheets).map((sheet) => [sheet.participantId, sheet.location])
+    (persistMechanics ? planSheets : sheets).map((sheet) => [sheet.participantId, sheet.location])
   );
   const goalFacts: TrpgGoalRoundFacts = {
     round: roundNumber,
@@ -2586,6 +2870,16 @@ function commitPendingGmResult(
     locations: seatLocationsForFinish(sheets, explorationCommit?.results),
     goals: currentLedger.goals,
   });
+  const serverEndingDecision = evaluateTrpgEndingDecision({
+    plans: loadRoundActionPlans(db, opts.roundId),
+    goals: currentLedger.goals,
+    humanParticipantIds: humanSeatIds,
+    scenarioEndingConditions: resolvedPlan?.endingConditions,
+    legacyFinishWouldStand: campaignFinished,
+  });
+  const serverFinish =
+    serverEndingDecision.kind === "end" && parsed.narration.trim().length > 0;
+  const finalCampaignFinished = serverFinish;
   const storedFinish = opts.regenerate
     ? readStoredGmFinish(
         (
@@ -2596,7 +2890,7 @@ function commitPendingGmResult(
       )
     : null;
   const finishStands =
-    campaignFinished || campaign.status === "CAMPAIGN_COMPLETE" || storedFinish?.effectiveCampaignFinished === true;
+    finalCampaignFinished || campaign.status === "CAMPAIGN_COMPLETE" || storedFinish?.effectiveCampaignFinished === true;
   if (finishStands) {
     parsed.narration = settleFinishedSceneNarration(parsed.narration);
     delete parsed.delta.questsAdd;
@@ -2607,12 +2901,12 @@ function commitPendingGmResult(
     ? { ...deltaWithoutEnding, encountersEnded: encounterEnding.accepted }
     : deltaWithoutEnding;
   const effectiveToStore =
-    opts.regenerate && storedFinish?.effectiveCampaignFinished === true ? true : campaignFinished;
+    opts.regenerate && storedFinish?.effectiveCampaignFinished === true ? true : finalCampaignFinished;
   const ledgerDelta = {
     ...boundLocation.delta,
     location: boundLocation.location || scenario.startLocation,
     nextRoundContext: boundLocation.nextRoundContext,
-    campaignFinished,
+    campaignFinished: finalCampaignFinished,
   };
   const goalContext = {
     round: roundNumber,
@@ -2710,11 +3004,16 @@ function commitPendingGmResult(
       ).run(
         opts.roundId,
         parsed.narration,
-        JSON.stringify({ ...parsed, effectiveCampaignFinished: effectiveToStore })
+        JSON.stringify({
+          ...parsed,
+          effectiveCampaignFinished: effectiveToStore,
+          endingDecision: serverEndingDecision,
+          planEffects: planItemEffects.effects,
+        })
       );
       if (opts.regenerate) return;
       if (persistMechanics) {
-        persistSheets(db, nextSheets);
+        persistSheets(db, planSheets);
         applyMechanicsOnCommit(db, mechanics);
         if (applied.ok && !opts.opening) {
           postGmOngoingResult = applyPostGmOngoingSeeds(db, {
@@ -2742,7 +3041,7 @@ function commitPendingGmResult(
         opts.roundId,
         acceptedSceneLocationFromBoundState({
           campaignLocation: ledger.location,
-          sheetLocations: (persistMechanics ? nextSheets : sheets).map((sheet) => sheet.location),
+          sheetLocations: (persistMechanics ? planSheets : sheets).map((sheet) => sheet.location),
         })
       );
       const effectiveLocalSceneDelta = resolveEffectiveLocalSceneDelta();
@@ -2759,7 +3058,7 @@ function commitPendingGmResult(
             threadsAdd: parsed.delta.threadsAdd,
             threadsResolve: parsed.delta.threadsResolve,
             endingConditionId: parsed.delta.endingConditionId,
-            campaignFinished,
+            campaignFinished: finalCampaignFinished,
             occurredMajorEventIndices: parsed.delta.occurredMajorEventIndices,
             revealedClueIndices: parsed.delta.revealedClueIndices,
           });
@@ -2793,7 +3092,7 @@ function commitPendingGmResult(
           roundId: opts.roundId,
           roundNumber,
           startSheets: sheets,
-          appliedSheets: persistMechanics ? nextSheets : sheets,
+          appliedSheets: persistMechanics ? planSheets : sheets,
           gmDelta: boundLocation.delta,
           mechanics,
           actors: lockedSubs.map((sub) => ({
@@ -2809,7 +3108,7 @@ function commitPendingGmResult(
         return threatShadowHasSignal(report) ? formatThreatShadowLog(report) : null;
       });
     }
-    return { campaignFinished };
+    return { campaignFinished: finalCampaignFinished };
   } catch (error) {
     throw attachTrpgCallFailureMeta(error, { stage });
   }
