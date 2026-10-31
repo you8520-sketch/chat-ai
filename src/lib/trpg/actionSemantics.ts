@@ -237,6 +237,57 @@ export function isCommittedItemTake(body: string, item: string): boolean {
   return committedItemTakeSpans(body).some((span) => objectNamesExactItem(takeObjectSpan(span), item));
 }
 
+/** The head noun of a social farewell act. A farewell word before an item is not this. */
+const FAREWELL_OBJECT_HEAD =
+  /(?:인사|작별인사|눈인사|포옹|악수)(?:를|을|가|이|는|은|도|만|로|으로)?$/u;
+/**
+ * One item-action predicate for purchase, receipt, payment, take, use, extraction, and
+ * consumption. Conditional/declined/quoted clauses are already filtered by the callers.
+ */
+const ITEM_ACTION_PREDICATE =
+  /(?:산다|사고(?=\s)|사서(?=\s)|샀다|구매|결제|지불|치른다|치러|주문|챙긴다|챙겨|집어\s?든다|집어\s?들|건네받|받아\s?든|받는다|받고|받아|사용한다|사용해|먹는다|마신다|마셔|바른다|발라|투여|꺼낸다|꺼내|쓴다|써서)/gu;
+const CURRENCY_OBJECT = /(?:동전|금화|은화|돈|값|요금|대금|잔돈|코인|포인트)/;
+const PAYMENT_PREDICATE = /(?:건넨다|건네|낸다|내밀|지불|치른다|치러)/;
+
+/** The object phrase immediately before one item-action match. */
+function objectBeforeAction(surface: string, index: number): string {
+  const words = surface.slice(0, index).trim().split(/\s+/).filter(Boolean);
+  for (let i = words.length - 1; i >= Math.max(0, words.length - 5); i -= 1) {
+    if (/(?:을|를)$/.test(words[i] ?? "")) return words.slice(i).join(" ");
+  }
+  return words.slice(-2).join(" ");
+}
+
+function isSocialFarewellObject(object: string): boolean {
+  return FAREWELL_OBJECT_HEAD.test(object.trim());
+}
+
+/**
+ * An item receipt, purchase, payment, take, use, extraction, or consumption is a separate
+ * act, not a description of how a PC leaves. The existing consumption/take owners stay
+ * authoritative; the unified predicate only fills verbs those owners do not cover.
+ * Consumption/use/extraction is never exempted by a farewell word in its object. A take
+ * span is exempt only when its governed object is a social farewell noun itself.
+ */
+export function hasIndependentItemAction(body: string): boolean {
+  if (committedItemConsumptionSpans(body).length > 0) return true;
+  if (
+    committedItemTakeSpans(body).some(
+      (span) => !isSocialFarewellObject(governedObjectSpan(clauseSurface(span), ITEM_TAKE_PREDICATE))
+    )
+  ) {
+    return true;
+  }
+  return otherCommittedActSpans(body).some((span) => {
+    const surface = clauseSurface(span);
+    for (const match of surface.matchAll(ITEM_ACTION_PREDICATE)) {
+      const object = objectBeforeAction(surface, match.index ?? 0);
+      if (!isSocialFarewellObject(object)) return true;
+    }
+    return CURRENCY_OBJECT.test(surface) && PAYMENT_PREDICATE.test(surface);
+  });
+}
+
 /** GM note for clauses that must not be narrated as done or charged. Locked quoted speech stays spoken. */
 export function uncommittedActionWire(body: string): string | null {
   const held = actionClauses(body).filter((clause) => {

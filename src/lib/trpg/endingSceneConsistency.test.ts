@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { applyGoalTransition } from "./campaignGoals";
+import { hasIndependentItemAction } from "./actionSemantics";
 import { loadCampaignLedger } from "./campaignLedger";
 import { gmAiActionText, lockedSpokenLines } from "./canonicalAttempt";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
@@ -21,8 +22,13 @@ import {
   R17_QUEST_ADD,
 } from "./endingSceneFixture";
 import {
+  adventureExplorationState,
+  EXPLORATION_DEPARTED_LOCATION,
   EXPLORATION_ENTRANCE,
   EXPLORATION_EXIT_ROOM,
+  explorationCommandsFromMovementBody,
+  priceExplorationCommands,
+  settleExplorationActor,
   type ExplorationState,
 } from "./explorationMap";
 import { loadExplorationState, saveExplorationState } from "./explorationStore";
@@ -663,7 +669,7 @@ function campaignStatusOf(db: Database.Database, campaignId: number): string {
 }
 
 describe("v2 adventure ending commit", () => {
-  it("#45: host-confirmed tea with only Ren at the door does not finish", async () => {
+  it("#45: host-confirmed tea with companions still inside does not finish even after Ren exits", async () => {
     const db = memoryDb();
     const { campaignId, hostId } = seedTeaParty(db, TEA_PLAN);
     let mode: "opening" | "blocked" | "claim" | "split" = "opening";
@@ -748,7 +754,7 @@ describe("v2 adventure ending commit", () => {
     assert.deepEqual(
       sheets.map((sheet) => [sheet.name, sheet.location]),
       [
-        ["렌", "출입문"],
+        ["렌", EXPLORATION_DEPARTED_LOCATION],
         ["권태현", "모밀찻집"],
         ["강이현", "모밀찻집"],
       ]
@@ -756,7 +762,7 @@ describe("v2 adventure ending commit", () => {
     db.close();
   });
 
-  it("finishes only after every seat is at the door with a locked farewell", async () => {
+  it("finishes after every seat reaches the door, the goal is host-confirmed, and Ren explicitly exits", async () => {
     const db = memoryDb();
     const { campaignId, hostId, kwonId, kangId } = seedTeaParty(db, TEA_PLAN);
     let mode: "opening" | "claim" | "ending" | "regen" = "opening";
@@ -1012,11 +1018,282 @@ describe("v2 adventure ending commit", () => {
     assert.deepEqual(
       sheets.map((sheet) => [sheet.name, sheet.location]),
       [
-        ["렌", "출입문"],
+        ["렌", EXPLORATION_DEPARTED_LOCATION],
         ["권태현", "출입문"],
         ["강이현", "출입문"],
       ]
     );
+    db.close();
+  });
+
+  it("prices and settles one explicit outside exit from a v2 goal room, and standing there is not an exit", () => {
+    const state = adventureExplorationState(TEA_PLAN.adventure, "p60-goal-exit");
+    const atDoor: ExplorationState = {
+      ...state,
+      visitedRoomIds: [...new Set([...state.visitedRoomIds, "door"])],
+    };
+    assert.deepEqual(explorationCommandsFromMovementBody(atDoor.map, TEA_FAREWELL, "door"), [{ op: "depart" }]);
+    assert.deepEqual(explorationCommandsFromMovementBody(atDoor.map, "문밖으로 나선다.", "door"), [{ op: "depart" }]);
+    assert.deepEqual(explorationCommandsFromMovementBody(atDoor.map, "문밖으로 나선다."), []);
+    assert.equal(
+      priceExplorationCommands({ state: atDoor, fromRoomId: "door", commands: [{ op: "depart" }], apRemaining: 3 }).spent,
+      1
+    );
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state: atDoor,
+          fromRoomId: "teahouse",
+          commands: [{ op: "depart" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+    assert.deepEqual(atDoor.departedParticipantIds, [], "standing in the goal room is not a departure fact");
+    const settled = settleExplorationActor({
+      state: atDoor,
+      pending: {
+        roundId: 12,
+        participantId: 7,
+        fromRoomId: "door",
+        commands: [{ op: "depart" }],
+        spent: 1,
+      },
+      name: "렌",
+      tier: null,
+    });
+    assert.equal(settled.result.location, EXPLORATION_DEPARTED_LOCATION);
+    assert.deepEqual(settled.state.departedParticipantIds, [7]);
+    assert.equal(settled.state.visitedRoomIds.includes(EXPLORATION_DEPARTED_LOCATION), false);
+  });
+
+  it("keeps a natural farewell beside a v2 exit but refuses an independent item action", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = seedTeaParty(db, TEA_PLAN);
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async () => ({ text: "자리를 지킨다.\n<<<ACTION_TYPE>>>\nfree\n<<<INTENT>>>\n자리를 지킨다." }),
+      gmCall: async () => ({
+        text: buildTrpgGmStructuredWireText("찻집 안이 조용하다.", {
+          players: [],
+          location: "모밀찻집",
+          next_round_context: "다음",
+          campaign_finished: false,
+          questsAdd: [TEA_GOAL],
+        }),
+      }),
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const opened = loadExplorationState(db, campaignId)!;
+    saveExplorationState(db, campaignId, {
+      ...opened,
+      visitedRoomIds: [...new Set([...opened.visitedRoomIds, "door"])],
+    });
+    writeSheet(db, campaignId, hostId, "렌", EVEN_STATS, "출입문");
+    const pendingCount = () => loadExplorationState(db, campaignId)!.pending.length;
+    const lockedCount = () =>
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS n FROM trpg_action_submissions s
+             JOIN trpg_rounds r ON r.id=s.round_id
+             WHERE r.campaign_id=? AND s.locked=1`
+          )
+          .get(campaignId) as { n: number }
+      ).n;
+    const hostLocation = () =>
+      (db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(hostId) as { location: string })
+        .location;
+
+    const hostInventory = () =>
+      (
+        db.prepare(`SELECT inventory_json FROM trpg_character_sheets WHERE participant_id=?`).get(hostId) as {
+          inventory_json: string;
+        }
+      ).inventory_json;
+    const beforeInventory = hostInventory();
+    const beforeAp = loadExplorationState(db, campaignId)!.apRemaining[String(hostId)];
+
+    const rejectedItems = [
+      "작별 인사를 건네고 메밀 봉투를 챙긴다.",
+      "작별 인사를 나누며 회복약을 사용한다.",
+      "작별 인사를 받고 메밀 봉투를 챙긴다.",
+      "작별 선물로 받은 회복약을 사용한다.",
+      "작별 선물로 받은 회복약을 꺼낸다.",
+      "작별 인사가 적힌 붕대를 쓴다.",
+      "인사동에서 산 회복약을 마신다.",
+      "작별 선물을 받는다.",
+      "회복약을 꺼낸다.",
+      "붕대를 쓴다.",
+      "메밀 봉투를 챙긴다.",
+      "상인에게 회복약을 산다.",
+      "메밀 봉투를 챙겨 작별 인사를 건넨다.",
+    ];
+    for (const itemAction of rejectedItems) {
+      assert.equal(hasIndependentItemAction(itemAction), true, itemAction);
+      assert.throws(
+        () => submitTrpgAction(db, { campaignId, userId: 1, body: `출입문 밖으로 나선다. ${itemAction}` }),
+        /퇴장과 별도/,
+        `inferred depart: ${itemAction}`
+      );
+      assert.throws(
+        () =>
+          submitTrpgAction(db, {
+            campaignId,
+            userId: 1,
+            body: itemAction,
+            explorationCommands: [{ op: "depart" }],
+          }),
+        /퇴장과 별도/,
+        `explicit depart: ${itemAction}`
+      );
+    }
+    for (const allowed of [
+      "작별 인사를 받는다.",
+      "작별 인사를 건넨다.",
+      "작별 인사를 나누며 눈인사를 한다.",
+      "작별 인사를 건네고 고개를 끄덕인다.",
+      '유리문을 연다. 두 사람을 바라보며 고개를 끄덕인다. "잘 가. 오늘은 여기까지다."',
+    ]) {
+      assert.equal(hasIndependentItemAction(allowed), false, allowed);
+    }
+    assert.throws(
+      () => submitTrpgAction(db, { campaignId, userId: 1, body: "중앙 테이블로 이동한다. 메밀 봉투를 챙긴다." }),
+      /일반 행동입니다/
+    );
+    assert.equal(pendingCount(), 0);
+    assert.equal(lockedCount(), 0);
+    assert.equal(hostLocation(), "출입문");
+    assert.equal(hostInventory(), beforeInventory);
+    assert.equal(loadExplorationState(db, campaignId)!.apRemaining[String(hostId)], beforeAp);
+
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: '출입문 밖으로 나선다. "잘 가. 오늘은 여기까지다."',
+    });
+    const stored = db
+      .prepare(
+        `SELECT body FROM trpg_action_submissions WHERE participant_id=?
+         ORDER BY id DESC LIMIT 1`
+      )
+      .get(hostId) as { body: string };
+    assert.match(stored.body, /시설 밖으로 나간다/);
+    assert.deepEqual(loadExplorationState(db, campaignId)!.pending[0]?.commands, [{ op: "depart" }]);
+    db.close();
+  });
+
+  it("#45: outside exit at the v2 goal room is a server fact, and the confirmed goal finishes next round", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId, kwonId, kangId } = seedTeaParty(db, TEA_PLAN);
+    let mode: "opening" | "claim" | "ending" = "opening";
+    let endingUser = "";
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 16,
+      botCall: async () => ({ text: "자리를 지킨다.\n<<<ACTION_TYPE>>>\nfree\n<<<INTENT>>>\n자리를 지킨다." }),
+      gmCall: async ({ user }) => {
+        if (mode === "ending") endingUser = user;
+        const opening = mode === "opening";
+        const claim = mode === "claim";
+        return {
+          text: buildTrpgGmStructuredWireText(
+            claim ? "출입문 앞에서 작별이 끝났다. 밤의 목적은 이루어졌다." : "찻집 안이 조용하다.",
+            {
+              players: [],
+              location: opening ? "모밀찻집" : "출입문",
+              next_round_context: "다음",
+              campaign_finished: !opening,
+              ...(opening ? { questsAdd: [TEA_GOAL] } : {}),
+              ...(claim ? { questsClaimDone: [TEA_GOAL] } : {}),
+            }
+          ),
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const opened = loadExplorationState(db, campaignId);
+    assert.equal(opened?.version, 2);
+    saveExplorationState(db, campaignId, {
+      ...opened!,
+      visitedRoomIds: [...new Set([...opened!.visitedRoomIds, "door"])],
+    });
+    writeSheet(db, campaignId, hostId, "렌", EVEN_STATS, "출입문");
+    writeSheet(db, campaignId, kwonId, "권태현", EVEN_STATS, "출입문");
+    writeSheet(db, campaignId, kangId, "강이현", EVEN_STATS, "출입문");
+    const active = loadCampaignLedger(db, campaignId).goals.find((goal) => goal.title === TEA_GOAL);
+    assert.equal(active?.status, "active");
+    assert.equal(active?.claimedRound, undefined);
+
+    mode = "claim";
+    submitTrpgAction(db, { campaignId, userId: 1, body: TEA_FAREWELL });
+    const storedSubmission = db
+      .prepare(
+        `SELECT body FROM trpg_action_submissions WHERE participant_id=?
+         ORDER BY id DESC LIMIT 1`
+      )
+      .get(hostId) as { body: string };
+    assert.match(storedSubmission.body, /시설 밖으로 나간다/);
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+
+    const left = loadExplorationState(db, campaignId)!;
+    assert.deepEqual(left.departedParticipantIds, [hostId]);
+    assert.equal(
+      (db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(hostId) as { location: string })
+        .location,
+      EXPLORATION_DEPARTED_LOCATION
+    );
+    assert.equal(
+      (db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(kwonId) as { location: string })
+        .location,
+      "출입문"
+    );
+    const claimed = loadCampaignLedger(db, campaignId).goals.find((goal) => goal.title === TEA_GOAL);
+    assert.equal(claimed?.status, "active");
+    assert.ok(claimed?.claimedRound);
+    assert.equal(latestGmJson(db, campaignId).effectiveCampaignFinished, false);
+    assert.notEqual(campaignStatusOf(db, campaignId), "CAMPAIGN_COMPLETE");
+
+    assert.equal(
+      answerTrpgGoalClaim(db, {
+        campaignId,
+        userId: 1,
+        goalId: claimed.id,
+        claimedRound: claimed.claimedRound,
+        decision: "confirm",
+      }).outcome,
+      "confirmed"
+    );
+    assert.equal(
+      loadCampaignLedger(db, campaignId).goals.find((goal) => goal.title === TEA_GOAL)?.status,
+      "completed"
+    );
+
+    mode = "ending";
+    submitTrpgAction(db, { campaignId, userId: 1, body: "숨을 고른다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.match(endingUser, /A finish request on this round would end the campaign/);
+    const ended = latestGmJson(db, campaignId);
+    assert.equal(ended.campaignFinished, true);
+    assert.equal(ended.effectiveCampaignFinished, true);
+    assert.equal(campaignStatusOf(db, campaignId), "CAMPAIGN_COMPLETE");
+    const finalSheets = db
+      .prepare(
+        `SELECT s.name, s.location FROM trpg_character_sheets s
+         JOIN trpg_participants p ON p.id = s.participant_id
+         WHERE s.campaign_id=? ORDER BY p.slot_index`
+      )
+      .all(campaignId) as Array<{ name: string; location: string }>;
+    assert.deepEqual(
+      finalSheets.map((sheet) => [sheet.name, sheet.location]),
+      [
+        ["렌", EXPLORATION_DEPARTED_LOCATION],
+        ["권태현", "출입문"],
+        ["강이현", "출입문"],
+      ]
+    );
+    assert.deepEqual(loadExplorationState(db, campaignId)!.departedParticipantIds, [hostId]);
     db.close();
   });
 });
