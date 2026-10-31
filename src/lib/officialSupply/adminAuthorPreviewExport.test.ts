@@ -18,6 +18,7 @@ const preview: AdminAuthorPreviewExport = {
   issues: [{ code: "sfw_public_text_has_adult_terms", message: "all-ages public text contains adult terms" }],
   repairable: false,
   voiceRepairs: 0,
+  adult: false,
   textLock: "bb65bc713ed1deadbeef",
   creatorComment: "지금 상황",
   manuscript: {
@@ -44,6 +45,7 @@ describe("admin author preview export", () => {
   it("copies the public preview fields and leaves out hidden canon", () => {
     const parsed = JSON.parse(adminAuthorPreviewExportJson({ ...preview, systemPrompt: "hidden" } as AdminAuthorPreviewExport)) as Record<string, unknown>;
     assert.deepEqual(Object.keys(parsed).sort(), [
+      "adult",
       "creatorComment",
       "issues",
       "manuscript",
@@ -64,6 +66,15 @@ describe("admin author preview export", () => {
     assert.equal(resolved.humor, "central");
     assert.equal(resolved.pacing, "dialogue");
     assert.equal(resolved.nameWordplay, "nickname");
+  });
+
+  it("preserves general and adult modes in the exported JSON", () => {
+    for (const adult of [false, true]) {
+      const parsed = JSON.parse(
+        adminAuthorPreviewExportJson({ ...preview, adult })
+      ) as Record<string, unknown>;
+      assert.equal(parsed.adult, adult);
+    }
   });
 
   it("includes the experience canon and still drops a system prompt", () => {
