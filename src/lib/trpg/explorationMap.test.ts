@@ -697,6 +697,98 @@ describe("exploration map generation", () => {
       /연결되지 않은 곳으로는 이동할 수 없습니다/
     );
 
+    const summaryMention = adventureExplorationState(
+      {
+        start: "hall",
+        places: [
+          { key: "hall", name: "회랑", summary: "안쪽으로 이어지는 회랑.", role: "start" },
+          { key: "sealed_room", name: "봉인실", summary: "출입문 없음. 외부 연결이 없는 밀실.", role: "goal" },
+        ],
+        links: [{ from: "hall", to: "sealed_room" }],
+        events: [],
+      },
+      "summary-mention"
+    );
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state: summaryMention,
+          fromRoomId: "sealed_room",
+          commands: [{ op: "depart" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+
+    const gardenMention = adventureExplorationState(
+      {
+        start: "hall",
+        places: [
+          { key: "hall", name: "회랑", summary: "안쪽으로 이어지는 회랑.", role: "start" },
+          { key: "sealed_room", name: "봉인실", summary: "창문 너머 정원 풍경이 보이는 밀실.", role: "goal" },
+        ],
+        links: [{ from: "hall", to: "sealed_room" }],
+        events: [],
+      },
+      "garden-mention"
+    );
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state: gardenMention,
+          fromRoomId: "sealed_room",
+          commands: [{ op: "depart" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+
+    const innerGate = adventureExplorationState(
+      {
+        start: "hall",
+        places: [
+          { key: "hall", name: "회랑", summary: "안쪽으로 이어지는 회랑.", role: "start" },
+          { key: "inner_gate", name: "내부 검문소", summary: "건물 내부 연결을 통제한다.", role: "goal" },
+        ],
+        links: [{ from: "hall", to: "inner_gate" }],
+        events: [],
+      },
+      "inner-gate"
+    );
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state: innerGate,
+          fromRoomId: "inner_gate",
+          commands: [{ op: "depart" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+
+    const innerDoor = adventureExplorationState(
+      {
+        start: "hall",
+        places: [
+          { key: "hall", name: "회랑", summary: "안쪽으로 이어지는 회랑.", role: "start" },
+          { key: "inner_door", name: "내부 출입문", summary: "건물 내부 연결 통로.", role: "goal" },
+        ],
+        links: [{ from: "hall", to: "inner_door" }],
+        events: [],
+      },
+      "inner-door"
+    );
+    assert.throws(
+      () =>
+        priceExplorationCommands({
+          state: innerDoor,
+          fromRoomId: "inner_door",
+          commands: [{ op: "depart" }],
+          apRemaining: 3,
+        }),
+      /연결되지 않은 곳으로는 이동할 수 없습니다/
+    );
+
     const teaExit = adventureExplorationState(
       {
         start: "teahouse",

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { applyGoalTransition } from "./campaignGoals";
+import { hasIndependentItemAction } from "./actionSemantics";
 import { loadCampaignLedger } from "./campaignLedger";
 import { gmAiActionText, lockedSpokenLines } from "./canonicalAttempt";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
@@ -1105,40 +1106,62 @@ describe("v2 adventure ending commit", () => {
       (db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(hostId) as { location: string })
         .location;
 
-    assert.throws(
-      () => submitTrpgAction(db, { campaignId, userId: 1, body: "출입문 밖으로 나선다. 메밀 봉투를 챙긴다." }),
-      /퇴장과 별도/
-    );
-    assert.throws(
-      () => submitTrpgAction(db, { campaignId, userId: 1, body: "출입문 밖으로 나선다. 상인에게 회복약을 산다." }),
-      /퇴장과 별도/
-    );
-    assert.throws(
-      () =>
-        submitTrpgAction(db, {
-          campaignId,
-          userId: 1,
-          body: "출입문 밖으로 나선다. 메밀 봉투를 챙겨 작별 인사를 건넨다.",
-        }),
-      /퇴장과 별도/
-    );
+    const hostInventory = () =>
+      (
+        db.prepare(`SELECT inventory_json FROM trpg_character_sheets WHERE participant_id=?`).get(hostId) as {
+          inventory_json: string;
+        }
+      ).inventory_json;
+    const beforeInventory = hostInventory();
+    const beforeAp = loadExplorationState(db, campaignId)!.apRemaining[String(hostId)];
+
+    const rejectedItems = [
+      "작별 인사를 건네고 메밀 봉투를 챙긴다.",
+      "작별 인사를 나누며 회복약을 사용한다.",
+      "작별 인사를 받고 메밀 봉투를 챙긴다.",
+      "회복약을 꺼낸다.",
+      "붕대를 쓴다.",
+      "메밀 봉투를 챙긴다.",
+      "상인에게 회복약을 산다.",
+      "메밀 봉투를 챙겨 작별 인사를 건넨다.",
+    ];
+    for (const itemAction of rejectedItems) {
+      assert.equal(hasIndependentItemAction(itemAction), true, itemAction);
+      assert.throws(
+        () => submitTrpgAction(db, { campaignId, userId: 1, body: `출입문 밖으로 나선다. ${itemAction}` }),
+        /퇴장과 별도/,
+        `inferred depart: ${itemAction}`
+      );
+      assert.throws(
+        () =>
+          submitTrpgAction(db, {
+            campaignId,
+            userId: 1,
+            body: itemAction,
+            explorationCommands: [{ op: "depart" }],
+          }),
+        /퇴장과 별도/,
+        `explicit depart: ${itemAction}`
+      );
+    }
+    for (const allowed of [
+      "작별 인사를 받는다.",
+      "작별 인사를 건넨다.",
+      "작별 인사를 나누며 눈인사를 한다.",
+      "작별 인사를 건네고 고개를 끄덕인다.",
+      '유리문을 연다. 두 사람을 바라보며 고개를 끄덕인다. "잘 가. 오늘은 여기까지다."',
+    ]) {
+      assert.equal(hasIndependentItemAction(allowed), false, allowed);
+    }
     assert.throws(
       () => submitTrpgAction(db, { campaignId, userId: 1, body: "중앙 테이블로 이동한다. 메밀 봉투를 챙긴다." }),
       /일반 행동입니다/
     );
-    assert.throws(
-      () =>
-        submitTrpgAction(db, {
-          campaignId,
-          userId: 1,
-          body: "메밀 봉투를 챙긴다.",
-          explorationCommands: [{ op: "depart" }],
-        }),
-      /퇴장과 별도/
-    );
     assert.equal(pendingCount(), 0);
     assert.equal(lockedCount(), 0);
     assert.equal(hostLocation(), "출입문");
+    assert.equal(hostInventory(), beforeInventory);
+    assert.equal(loadExplorationState(db, campaignId)!.apRemaining[String(hostId)], beforeAp);
 
     submitTrpgAction(db, {
       campaignId,

@@ -239,32 +239,52 @@ export function isCommittedItemTake(body: string, item: string): boolean {
 
 /** Farewell objects that may accompany a terminal exit without becoming an item/trade action. */
 const FAREWELL_OBJECT = /(?:인사|작별|포옹|악수|눈인사)/;
-/** Purchase, receipt, payment, take, use, or consumption predicates. */
-const INDEPENDENT_ITEM_PREDICATE =
-  /(?:산다|사고|사서|샀다|구매|결제|지불|치른다|치러|주문|챙긴다|챙겨|집어\s?든다|집어\s?들|건네받|받아\s?든|받는다|받고|받아|사용한다|사용해|먹는다|마신다|마셔|바른다|발라|투여)/u;
+/**
+ * One item-action predicate for purchase, receipt, payment, take, use, extraction, and
+ * consumption. Conditional/declined/quoted clauses are already filtered by the callers.
+ */
+const ITEM_ACTION_PREDICATE =
+  /(?:산다|사고(?=\s)|사서(?=\s)|샀다|구매|결제|지불|치른다|치러|주문|챙긴다|챙겨|집어\s?든다|집어\s?들|건네받|받아\s?든|받는다|받고|받아|사용한다|사용해|먹는다|마신다|마셔|바른다|발라|투여|꺼낸다|꺼내|쓴다|써서)/gu;
 const CURRENCY_OBJECT = /(?:동전|금화|은화|돈|값|요금|대금|잔돈|코인|포인트)/;
 const PAYMENT_PREDICATE = /(?:건넨다|건네|낸다|내밀|지불|치른다|치러)/;
 
+/** The object phrase immediately before one item-action match. */
+function objectBeforeAction(surface: string, index: number): string {
+  const words = surface.slice(0, index).trim().split(/\s+/).filter(Boolean);
+  for (let i = words.length - 1; i >= Math.max(0, words.length - 5); i -= 1) {
+    if (/(?:을|를)$/.test(words[i] ?? "")) return words.slice(i).join(" ");
+  }
+  return words.slice(-2).join(" ");
+}
+
+function isFarewellGoverned(span: string, predicate: RegExp): boolean {
+  return FAREWELL_OBJECT.test(governedObjectSpan(clauseSurface(span), predicate));
+}
+
 /**
- * An item receipt, purchase, payment, take, use, or consumption is a separate act, not a
- * description of how a PC leaves. Reuses the action-clause owner; farewell objects are exempt.
+ * An item receipt, purchase, payment, take, use, extraction, or consumption is a separate
+ * act, not a description of how a PC leaves. The existing consumption/take owners stay
+ * authoritative; the unified predicate only fills verbs those owners do not cover. Farewell
+ * is exempt only when the governed object of that item verb is the farewell object itself.
  */
 export function hasIndependentItemAction(body: string): boolean {
-  const spans = new Set([
-    ...committedItemConsumptionSpans(body),
-    ...committedItemTakeSpans(body),
-    ...otherCommittedActSpans(body),
-  ]);
-  return [...spans].some((span) => {
+  if (
+    committedItemConsumptionSpans(body).some(
+      (span) => !isFarewellGoverned(span, ITEM_CONSUMPTION_PREDICATE)
+    )
+  ) {
+    return true;
+  }
+  if (committedItemTakeSpans(body).some((span) => !isFarewellGoverned(span, ITEM_TAKE_PREDICATE))) {
+    return true;
+  }
+  return otherCommittedActSpans(body).some((span) => {
     const surface = clauseSurface(span);
-    if (CURRENCY_OBJECT.test(surface) && PAYMENT_PREDICATE.test(surface)) return true;
-    const itemAt = surface.search(INDEPENDENT_ITEM_PREDICATE);
-    if (itemAt < 0) return false;
-    const farewellAt = surface.search(FAREWELL_OBJECT);
-    if (farewellAt < 0) return true;
-    // "작별 인사를 받는다" is the farewell predicate. "메밀 봉투를 챙겨 작별 인사를
-    // 건넨다" has a separate item take before it, so the item act stays independent.
-    return itemAt < farewellAt;
+    for (const match of surface.matchAll(ITEM_ACTION_PREDICATE)) {
+      const object = objectBeforeAction(surface, match.index ?? 0);
+      if (!FAREWELL_OBJECT.test(object)) return true;
+    }
+    return CURRENCY_OBJECT.test(surface) && PAYMENT_PREDICATE.test(surface);
   });
 }
 

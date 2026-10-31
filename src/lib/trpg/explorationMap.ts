@@ -487,12 +487,12 @@ export function legacyFacilityMap(map: ExplorationMap): boolean {
 
 /**
  * v2 authored places: `role=goal` marks a destination, not necessarily an exterior boundary.
- * Reuse the place's own canonical key/name/summary to require an authored exit-like boundary.
- * Bare "문" is intentionally not enough; explicit exit nouns or an exit/entrance/outside/gate
- * key are. This keeps an interior sanctum/vault/engine-room goal from becoming an exit.
+ * The current adventure contract has no typed exterior flag. The only place-level signal that
+ * is not a mention or a key fragment is the authored display name itself. A goal room is a
+ * departure boundary only when its complete name is one canonical boundary label. Summary
+ * words and key fragments never grant exit authority; ambiguous or modified names are refused.
  */
-const EXIT_BOUNDARY_KEY = /(?:^|[_-])(?:exit|entrance|outside|gate)(?:$|[_-])/i;
-const EXIT_BOUNDARY_TOKENS = new Set([
+const EXIT_BOUNDARY_NAMES = new Set([
   "출구",
   "출입구",
   "출입문",
@@ -523,9 +523,7 @@ const EXIT_BOUNDARY_TOKENS = new Set([
 
 export function isAdventureExitBoundaryRoom(room: ExplorationRoom): boolean {
   if (room.role !== "goal") return false;
-  if (EXIT_BOUNDARY_KEY.test(room.id)) return true;
-  const tokens = `${room.name ?? room.id} ${room.summary ?? ""}`.split(/[^\p{L}\p{N}]+/u);
-  return tokens.some((token) => EXIT_BOUNDARY_TOKENS.has(token));
+  return EXIT_BOUNDARY_NAMES.has((room.name ?? "").trim());
 }
 
 /**
