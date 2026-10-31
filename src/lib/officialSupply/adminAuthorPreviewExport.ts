@@ -149,6 +149,7 @@ export function adminAuthorPreviewExportJson(preview: AdminAuthorPreviewExport):
       issues: preview.issues,
       repairable: preview.repairable,
       voiceRepairs: preview.voiceRepairs,
+      adult: preview.adult,
       textLock: preview.textLock,
       ...(creatorComment ? { creatorComment } : {}),
       manuscript: {
