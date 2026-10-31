@@ -70,6 +70,10 @@ import { validateResearchSnapshot, type ResearchSnapshot } from "@/lib/officialS
 import { OfficialSupplyGateError, type OfficialWorldProjectionDiagnostic } from "@/lib/officialSupply/store";
 import type { OfficialCharacterDraft, QaIssue } from "@/lib/officialSupply/types";
 import { evaluateInternalRegionConsistency, internalWorldRegions } from "@/lib/officialSupply/worldQa";
+import {
+  evaluateUserRelationPremise,
+  officialUserRelationPremiseTexts,
+} from "@/lib/officialSupply/userRelationStart";
 
 /** World (3) + one brief replan + character (3) + two explicit voice repairs. */
 export const ADMIN_AUTHOR_CALL_CAP = 12;
@@ -285,6 +289,7 @@ function briefGate(
     policy: MARKET_POLICY,
     namingProfile: plan.namingProfile,
   }).errors;
+  errors.push(...briefRelationPremiseErrors(brief));
   if (brief.age < 19) errors.push(`age ${brief.age} < 19`);
   if (brief.adultCandidate) errors.push("adultCandidate must stay false");
   if (brief.gender !== gender) errors.push(`gender ${brief.gender} != ${gender}`);
@@ -292,6 +297,17 @@ function briefGate(
     ...evaluateInternalRegionConsistency(JSON.stringify(brief), internalWorldRegions(world.regions)).errors.map((e) => `region ${e.code}`)
   );
   return errors;
+}
+
+/**
+ * FREE premise contract for the first portfolio brief. Uses the same canonical
+ * owner as the bible-entry gate so a bad brief is caught by the existing
+ * one-shot portfolio replan instead of failing after the character calls.
+ */
+export function briefRelationPremiseErrors(brief: PortfolioBriefInput): string[] {
+  const type = brief.userRelation?.type ?? "free";
+  const premise = evaluateUserRelationPremise(type, officialUserRelationPremiseTexts(brief));
+  return premise.ok ? [] : premise.errors.map((e) => `relation ${e.code}: ${e.message}`);
 }
 
 export function officialVoiceFieldsForQaCodes(codes: readonly string[]): OfficialVoiceRevisionField[] {
