@@ -111,7 +111,7 @@ test("copies a passing fixture and downloads a QA-fail fixture", async ({ page }
   });
   await page.getByRole("button", { name: "원고 생성", exact: true }).click();
   await expect(page.getByTestId("admin-author-copy-json")).toBeVisible();
-  await expect(page.getByTestId("admin-author-qa")).toContainText("검수 통과");
+  await expect(page.getByTestId("admin-author-qa")).toContainText("저장 가능");
   if (evidenceDir) {
     await page.getByTestId("admin-author-copy-json").scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(evidenceDir, "after-1440.png") });
