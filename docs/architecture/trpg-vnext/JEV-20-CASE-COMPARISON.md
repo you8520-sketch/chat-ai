@@ -20,7 +20,19 @@
 | ending 3-way | 18/20 (90%) | **6/20 (30%)** |
 | ending binary | — | **19/20 (95%)** |
 
-ending binary는 human 19/19, 긴 봇 복합문 0/1이었다.
+### ending binary 혼동행렬
+
+|  | gold farewell | gold not-farewell |
+|---|---:|---:|
+| JEV farewell | **TP 1** | **FP 0** |
+| JEV not-farewell | **FN 1** | **TN 18** |
+
+- accuracy = (1+18)/20 = **95%**
+- recall = 1/(1+1) = **50%**
+- precision = 1/(1+0) = 100%
+- 유일한 FN은 긴 봇 복합문이다. human만 보면 19/19지만, 전체 recall은 50%다.
+
+`currentAction`/`currentEnding`은 이 20-case 비교를 위한 **benchmark adapter**다. production classifier가 아니며, R1 운영 판정은 `actionContract.ts` / `endingDecision.ts`가 소유한다.
 
 ## 현재 분류기의 오류
 
@@ -45,6 +57,13 @@ ending binary는 human 19/19, 긴 봇 복합문 0/1이었다.
 - `dice.ts`, `explorationMap.ts` / `explorationStore.ts`, `engineSheets.ts` / `inventory.ts`, auth/billing/idempotency는 대체하지 않는다.
 - JEV를 추가 차단기로 두지 않는다. low confidence/모호성은 한 번의 clarification 또는 보수적 no-op으로 처리한다.
 - JEV 3-way ending은 채택하지 않는다. binary ending도 human 명시적 작별의 보조 신호로만 쓰고, 최종 종료는 서버 `EndingDecision`이 소유한다.
+
+## C10/C19 정정
+
+- C10 “칼을 뽑지 않고 두 손을 펼쳐 보인다”와 C19 “문밖으로 나가지 않고 안쪽에 남아 상황을 지켜본다”는 **문장 전체 negated가 아니다.**
+- 부정 범위는 각각 “칼을 뽑지”, “문밖으로 나가지”라는 named act다. 뒤의 “두 손을 펼쳐 보인다”, “안쪽에 남아 상황을 지켜본다”는 committed remainder다.
+- 위 표의 gold `commitment:"negated"`는 20-case **benchmark adapter**의 문장 단위 label이다. production `ActionProposal`은 act별로 `negated`/`committed`를 나눠 저장한다(`actionContract.test.ts`가 C10/C19 형태를 고정).
+- 따라서 benchmark의 1-label 점수와 production act-level 판정을 같은 것으로 보고하지 않는다.
 
 ## 재현
 

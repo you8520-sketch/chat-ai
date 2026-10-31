@@ -16,7 +16,7 @@ function modifiersNote(stats: Record<string, number>): string {
 export function loadSheetSnapshots(db: Database.Database, campaignId: number): TrpgSheetSnapshot[] {
   const rows = db
     .prepare(
-      `SELECT s.id AS sheet_id, s.participant_id, s.name, s.level, s.hp, s.max_hp,
+      `SELECT s.id AS sheet_id, s.participant_id, s.name, s.level, s.xp, s.stat_points, s.hp, s.max_hp,
               s.conditions_json, s.inventory_json, s.location, s.revision, p.display_name
        FROM trpg_character_sheets s
        JOIN trpg_participants p ON p.id = s.participant_id
@@ -28,6 +28,8 @@ export function loadSheetSnapshots(db: Database.Database, campaignId: number): T
     participant_id: number;
     name: string;
     level: number;
+    xp: number;
+    stat_points: number;
     hp: number;
     max_hp: number;
     conditions_json: string;
@@ -47,6 +49,7 @@ export function loadSheetSnapshots(db: Database.Database, campaignId: number): T
       name: row.name,
       playerName: row.display_name,
       level: row.level,
+      ...(row.xp || row.stat_points ? { xp: row.xp, statPoints: row.stat_points } : {}),
       hp: row.hp,
       maxHp: row.max_hp,
       stats,
@@ -62,7 +65,8 @@ export function loadSheetSnapshots(db: Database.Database, campaignId: number): T
 export function persistSheets(db: Database.Database, sheets: TrpgSheetSnapshot[]): void {
   const updateSheet = db.prepare(
     `UPDATE trpg_character_sheets
-     SET hp=?, max_hp=?, conditions_json=?, inventory_json=?, location=?, revision=revision+1, updated_at=datetime('now')
+     SET xp=?, level=?, stat_points=?, hp=?, max_hp=?, conditions_json=?, inventory_json=?, location=?,
+         revision=revision+1, updated_at=datetime('now')
      WHERE participant_id=?`
   );
   const updateStat = db.prepare(
@@ -72,6 +76,9 @@ export function persistSheets(db: Database.Database, sheets: TrpgSheetSnapshot[]
   );
   for (const sheet of sheets) {
     updateSheet.run(
+      sheet.xp ?? 0,
+      sheet.level,
+      sheet.statPoints ?? 0,
       sheet.hp,
       sheet.maxHp,
       JSON.stringify(sheet.conditions),

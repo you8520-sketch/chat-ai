@@ -225,6 +225,32 @@ export function loadLatestCompleteMechanics(
   return null;
 }
 
+/**
+ * The last completed mechanics snapshot that actually recorded a threat
+ * strike. Ending and non-combat rounds have empty strike lists; the combat
+ * projection still needs the strike that changed HP earlier.
+ */
+export function loadLatestThreatStrikeMechanics(
+  db: Database.Database,
+  campaignId: number
+): MechanicsResolution | null {
+  if (!hasTable(db, "trpg_mechanics_resolutions")) return null;
+  const rows = db
+    .prepare(
+      `SELECT m.resolution_json
+       FROM trpg_mechanics_resolutions m
+       JOIN trpg_rounds r ON r.id = m.round_id
+       WHERE m.campaign_id=?
+       ORDER BY r.round_number DESC`
+    )
+    .all(campaignId) as Array<{ resolution_json: string }>;
+  for (const row of rows) {
+    const parsed = parseJson(row.resolution_json, null as MechanicsResolution | null);
+    if (parsed?.v === 1 && parsed.complete && (parsed.threatStrikes?.length ?? 0) > 0) return parsed;
+  }
+  return null;
+}
+
 function rowToEffect(row: Record<string, unknown>): TrpgOngoingEffect {
   return {
     id: Number(row.id),

@@ -488,7 +488,7 @@ describe("companion movement uses the same fact as the server", () => {
     capped.db.close();
   });
 
-  it("refuses a human general submit of the follow sentence and prices a pure move", async () => {
+  it("accepts a human general submit of the follow sentence and prices the move", async () => {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 1, {
       title: "정거장",
@@ -521,9 +521,19 @@ describe("companion movement uses the same fact as the server", () => {
       }),
     };
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.throws(() => submitTrpgAction(db, { campaignId, userId: 1, body: FOLLOW }), /일반 행동입니다/);
-    assert.equal(locationOf(db, hostId), "도킹 베이");
-    submitTrpgAction(db, { campaignId, userId: 1, body: "주 통로로 이동한다." });
+    assert.doesNotThrow(() => submitTrpgAction(db, { campaignId, userId: 1, body: FOLLOW }));
+    assert.equal(locationOf(db, hostId), "도킹 베이", "the move is priced, not committed, at submit");
+    const planRow = db
+      .prepare(`SELECT action_plan_json FROM trpg_action_submissions WHERE participant_id=? ORDER BY id DESC LIMIT 1`)
+      .get(hostId) as { action_plan_json: string };
+    const plan = JSON.parse(planRow.action_plan_json) as {
+      acts: Array<{ kind: string; status: string; destinationRoomId?: string }>;
+    };
+    assert.ok(
+      plan.acts.some(
+        (act) => act.kind === "move" && act.status === "planned" && act.destinationRoomId === "main_corridor"
+      )
+    );
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(locationOf(db, hostId), "주 통로");
     assert.match(lockedRow(db, hostId).body, /주 통로로 이동한다/);

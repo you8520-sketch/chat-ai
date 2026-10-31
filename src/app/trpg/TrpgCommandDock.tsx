@@ -728,6 +728,7 @@ export default function TrpgCommandDock({
   acceptItemNames = [],
   onToggleAcceptItem,
   onSetInventoryEquipped,
+  onAllocateStat,
   onOcclusionChange,
   liveStatus = null,
   liveStatusStage = null,
@@ -763,6 +764,7 @@ export default function TrpgCommandDock({
   acceptItemNames?: readonly string[];
   onToggleAcceptItem?: (name: string) => void;
   onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
+  onAllocateStat?: (statKey: string) => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
   liveStatus?: string | null;
   liveStatusStage?: string | null;
@@ -977,6 +979,7 @@ export default function TrpgCommandDock({
         statDefs: snap.statDefs,
         ongoingEffects: snap.ongoingEffects,
         mechanicsLines: snap.mechanicsLines,
+        combat: snap.combat,
         interactive: true,
       })
     : null;
@@ -985,6 +988,7 @@ export default function TrpgCommandDock({
         statDefs: snap.statDefs,
         ongoingEffects: snap.ongoingEffects,
         mechanicsLines: snap.mechanicsLines,
+        combat: snap.combat,
         interactive: false,
       })
     : null;
@@ -1128,6 +1132,30 @@ export default function TrpgCommandDock({
                         busy={busy}
                         onSetEquipped={onSetInventoryEquipped}
                       />
+                    ) : null}
+                    {onAllocateStat && selfSurface.statPoints > 0 ? (
+                      <div
+                        data-trpg-growth-allocator=""
+                        className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3"
+                      >
+                        <p className="text-xs font-semibold text-violet-100">
+                          능력치 배분점 {selfSurface.statPoints}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="능력치 배분">
+                          {selfSurface.stats.map((stat) => (
+                            <button
+                              key={stat.key}
+                              type="button"
+                              disabled={busy}
+                              data-trpg-growth-stat={stat.key}
+                              onClick={() => onAllocateStat(stat.key)}
+                              className="inline-flex min-h-9 items-center rounded-full border border-violet-300/40 bg-violet-500/15 px-3 text-xs font-semibold text-zinc-100 disabled:opacity-50"
+                            >
+                              {stat.label} +1
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ) : null}
                     <SheetSurfaceView
                       surface={selfSurface}

@@ -234,6 +234,8 @@ export type ThreatStrikeRecord = {
   dc: number;
   hit: boolean;
   damageClass: Exclude<MechanicsClass, "NONE">;
+  /** HP per die point (maxHp-derived); amount = dice.total * unit. */
+  unit: number;
   dice: DiceRollRecord | null;
   hpBefore: number;
   hpAfter: number;

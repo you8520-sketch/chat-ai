@@ -771,6 +771,9 @@ export default function TrpgRoomClient({
               ...(slot !== undefined ? { slot } : {}),
             })
           }
+          onAllocateStat={(statKey) =>
+            void run(`/api/trpg/campaigns/${snap.id}/growth`, { statKey })
+          }
           onRetryBots={() => void run(`/api/trpg/campaigns/${snap.id}/retry-bots`)}
           onRetryGm={() => void run(`/api/trpg/campaigns/${snap.id}/advance`)}
           onReroll={(roundNumber) =>

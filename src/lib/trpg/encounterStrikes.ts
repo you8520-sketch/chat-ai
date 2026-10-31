@@ -1,6 +1,6 @@
 import { destinationRefinesDeclared } from "./campaignLedger";
 import type { TrpgCampaignContext } from "./campaignContext";
-import { clampHpAmount, rollDiceExpression, type DiceRng } from "./mechanicsDice";
+import { clampHpAmount, hpUnit, rollDiceExpression, type DiceRng } from "./mechanicsDice";
 import type { ThreatStrikeRecord } from "./mechanicsTypes";
 import { parseScenarioEncounters, type TrpgScenarioEncounter } from "./scenarioPlan";
 import type { TrpgSheetSnapshot } from "./types";
@@ -74,6 +74,7 @@ export function resolveThreatStrikes(opts: {
       dc,
       hit,
       damageClass: encounter.damageClass,
+      unit: hpUnit(target.maxHp),
       dice,
       hpBefore,
       hpAfter: target.hp,
@@ -119,9 +120,15 @@ export function formatThreatStrikeLines(
   strikes: readonly ThreatStrikeRecord[],
   nameOf: (participantId: number) => string
 ): string[] {
-  return strikes.map((strike) =>
-    strike.hit
-      ? `THREAT_STRIKE ${strike.name} → ${nameOf(strike.targetParticipantId)}: d20 ${strike.d20} vs DC ${strike.dc} HIT, ${strike.dice?.expression ?? ""} = ${strike.dice?.total ?? 0}, HP ${strike.hpBefore} → ${strike.hpAfter}`
-      : `THREAT_STRIKE ${strike.name} → ${nameOf(strike.targetParticipantId)}: d20 ${strike.d20} vs DC ${strike.dc} MISS, no damage`
-  );
+  return strikes.map((strike) => {
+    const unit =
+      Number.isFinite(strike.unit) && strike.unit > 0
+        ? strike.unit
+        : (strike.dice?.total ?? 0) > 0
+          ? (strike.dice?.amount ?? 0) / strike.dice!.total
+          : 0;
+    return strike.hit
+      ? `THREAT_STRIKE ${strike.name} → ${nameOf(strike.targetParticipantId)}: d20 ${strike.d20} vs DC ${strike.dc} HIT, ${strike.dice?.expression ?? ""} rolls [${(strike.dice?.rolls ?? []).join(",")}] total ${strike.dice?.total ?? 0} × ${unit} = ${strike.dice?.amount ?? 0} damage, HP ${strike.hpBefore} → ${strike.hpAfter}`
+      : `THREAT_STRIKE ${strike.name} → ${nameOf(strike.targetParticipantId)}: d20 ${strike.d20} vs DC ${strike.dc} MISS, no damage`;
+  });
 }

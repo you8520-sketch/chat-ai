@@ -9,7 +9,8 @@ import {
 } from "./inventory";
 import { formatOngoingBadge, hpPercent, hpRiskLevel, type TrpgHpRisk } from "./sheetHud";
 import type { TrpgSheetHudCard } from "./sheetView";
-import type { TrpgMechanicsHudLine, TrpgPublicOngoingEffect } from "./snapshot";
+import { trpgXpToNextLevel, trpgXpIntoLevel } from "./progressionMath";
+import type { TrpgMechanicsHudLine, TrpgPublicCombat, TrpgPublicOngoingEffect } from "./snapshot";
 import { defsFromKeys, statModifier } from "./stats";
 import { TRPG_ACTION_MAX_CHARS, type TrpgStatDefinition } from "./types";
 
@@ -23,6 +24,10 @@ export type TrpgSheetSurface = {
   interactive: boolean;
   name: string;
   level: number;
+  xp: number;
+  xpIntoLevel: number;
+  xpToNextLevel: number;
+  statPoints: number;
   hp: number;
   maxHp: number;
   hpPercent: number;
@@ -42,6 +47,7 @@ export type TrpgSheetSurface = {
     draft: TrpgActionDraftFill | null;
   }[];
   mechanics: string[];
+  combat: TrpgPublicCombat | null;
   modifiersNote: string;
 };
 
@@ -51,6 +57,7 @@ export function buildTrpgSheetSurface(
     statDefs: readonly TrpgStatDefinition[];
     ongoingEffects: readonly TrpgPublicOngoingEffect[] | undefined;
     mechanicsLines: readonly TrpgMechanicsHudLine[] | undefined;
+    combat?: TrpgPublicCombat | null;
     interactive: boolean;
   }
 ): TrpgSheetSurface {
@@ -61,6 +68,10 @@ export function buildTrpgSheetSurface(
     interactive: opts.interactive,
     name: sheet.name,
     level: sheet.level,
+    xp: sheet.xp ?? 0,
+    xpIntoLevel: trpgXpIntoLevel(sheet.xp ?? 0),
+    xpToNextLevel: trpgXpToNextLevel(sheet.xp ?? 0),
+    statPoints: sheet.statPoints ?? 0,
     hp: sheet.hp,
     maxHp: sheet.maxHp,
     hpPercent: hpPercent(sheet.hp, sheet.maxHp),
@@ -97,6 +108,16 @@ export function buildTrpgSheetSurface(
     mechanics: (opts.mechanicsLines ?? [])
       .filter((line) => line.participantId === participantId)
       .map((line) => line.text),
+    combat: opts.combat
+      ? {
+          encounters: opts.combat.encounters.map((encounter) => ({
+            ...encounter,
+            strikes: encounter.strikes.filter(
+              (strike) => strike.targetParticipantId === participantId
+            ),
+          })),
+        }
+      : null,
     modifiersNote: sheet.modifiersNote.trim(),
   };
 }
@@ -175,6 +196,10 @@ export const TRPG_SHEET_SURFACE_FIELD_GUIDE: readonly { key: keyof TrpgSheetSurf
   { key: "interactive", note: "true면 내 시트(행동 초안 가능), false면 다른 파티원 시트" },
   { key: "name", note: "이름" },
   { key: "level", note: "레벨" },
+  { key: "xp", note: "캠페인 시트 누적 XP" },
+  { key: "xpIntoLevel", note: "현재 레벨에서 쌓인 XP (0..99)" },
+  { key: "xpToNextLevel", note: "다음 레벨까지 남은 XP" },
+  { key: "statPoints", note: "배분하지 않은 능력치 포인트" },
   { key: "hp", note: "현재 HP" },
   { key: "maxHp", note: "최대 HP" },
   { key: "hpPercent", note: "HP 비율 0–100" },
@@ -188,5 +213,6 @@ export const TRPG_SHEET_SURFACE_FIELD_GUIDE: readonly { key: keyof TrpgSheetSurf
     note: "[{ key, name, quantity, equipped, slot, slotLabel, draft }] — key는 안정적인 inventory id. quantity는 보유 개수(1 이상), equipped는 장착 여부, slot은 main_hand|off_hand|body|accessory|null, slotLabel은 표시 문구. name에는 ×N이 붙지 않음. draft는 내 시트에서만 있음. equipped/slot은 읽기 전용",
   },
   { key: "mechanics", note: "최근 판정 결과 문자열 목록" },
+  { key: "combat", note: "{ encounters: [{ key, name, kind, location, ended, strikes: [{ d20, dc, hit, diceExpression, diceRolls, diceTotal, damageUnit, amount, hpBefore, hpAfter }] }] } | null" },
   { key: "modifiersNote", note: "보정 메모" },
 ];

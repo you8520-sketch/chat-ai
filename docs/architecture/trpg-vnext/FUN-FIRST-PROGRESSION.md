@@ -1,10 +1,38 @@
 # TRPG R0 — Fun-first progression contract
 
-- 상태: **DESIGN + LOCAL EVIDENCE ONLY** (runtime 제품 코드 변경 없음)
+- 상태: **R0 DESIGN + LOCAL EVIDENCE**; R1 구현·로컬 플레이는 같은 브랜치의 제품 PR에서 이어졌다 (병합/배포 없음)
 - 기준 main: `9d190989b9ab6c14c03e5a3fe1a833b7a2de6866`
 - 관련: #45, #1786, P3-61, 기존 `docs/architecture/trpg-vnext/RFC.md`
 - 증거: `hav-rp-evidence-private`의 `cases/trpg-r0-2026-10-31-fun-progression/` (Draft PR)
 - 이 문서는 구현 청사진이며, 병합·배포·운영 DB 변경을 포함하지 않는다.
+
+---
+
+## 0. R0 정정 (R1 구현 기준)
+
+R0 원본 PR(#1793/#54)은 보존하고, 아래 판단만 R1 증거와 이 문서에서 정정한다. 유료 실험을 다시 돌려 원본을 대체하지 않았다.
+
+1. **완료 플래그 성공과 최종 위치 일치 실패는 다른 사건이다.**
+   - R0 로컬 완주는 `effectiveCampaignFinished=true` / `CAMPAIGN_COMPLETE`였다.
+   - 그러나 final-state의 시트/지도 위치는 `등대 기계실`이었고, 마지막 GM 서술은 부두를 떠났다고 말했다.
+   - 즉 “완료 플래그 성공”은 맞고, “최종 위치/서술 일치”는 실패다. 성공 실행으로 대체 설명하지 않는다.
+2. **JEV binary ending 혼동행렬**: TP=1, FN=1, TN=18, FP=0.
+   - accuracy 95%, 종료 감지 recall 50%.
+   - 유일한 FN은 긴 봇 복합문(farewell)이다. human 19/19만 보고 “종료 감지 95%”라고 일반화하지 않는다.
+3. **C10/C19는 문장 전체 negated가 아니다.**
+   - 부정된 named act와 뒤따르는 긍정 행동을 분리한다. 예: “칼을 뽑지 않고 두 손을 펼쳐 보인다” → negated(칼을 뽑지 않고) + committed(두 손을 펼쳐 보인다).
+   - R1 `actionContract.ts`는 act별 `commitment`로 이 구분을 보존한다.
+4. **benchmark adapter와 운영 판정을 구분한다.**
+   - R0 JEV 20-case의 `currentAction`/`currentEnding`은 비교용 adapter다. production classifier가 아니다.
+   - R1의 운영 판정은 `actionContract.ts`(제안/계획), `endingDecision.ts`(종료), `progression.ts`(성장)다.
+5. **탐색 실행 원본은 미보존이다.**
+   - R0 탐색 실행 디렉터리는 `--fresh`로 덮어써져 원본이 없다.
+   - 완주 실행 원본으로 대체하지 않고 “미확보”로 기록한다.
+6. **비용은 소계다.**
+   - `$0.246311`은 기록된 R0 GM/JEV 소계다.
+   - background memory 호출은 `api_cost_ledger`에서 R0/R1 window row를 찾지 못했다. 테스트 harness가 `NODE_TEST_CONTEXT`로 ledger 기록을 생략했기 때문이다.
+   - 따라서 “총비용 확정”이라고 보고하지 않는다. 기록된 GM+bot+JEV 소계만 보고한다.
+7. **증거 PR 본문 인코딩**은 UTF-8로 다시 작성한다.
 
 ---
 
@@ -370,7 +398,8 @@ Cursor는 점수를 매기지 않는다. 실제 원문만 제출한다.
 
 - 시나리오: `등대의 마지막 불빛` (4 rooms, 1 NPC, 1 enemy encounter, 1 goal)
 - 플레이: opening + 5 action rounds
-- 결과: `CAMPAIGN_COMPLETE`, `storyPhase=FINISHED`
+- 결과: `CAMPAIGN_COMPLETE`, `storyPhase=FINISHED` — **완료 플래그 성공**
+- **위치 일치 실패**: 마지막 서술은 부두를 떠났지만 final-state 시트/지도는 `등대 기계실`이었다. 완료 플래그와 최종 위치 일치는 별개다.
 - 목표: 1 completed (basis host)
 - HP: 40 → 36 (threat strike HIT, `LIGHT 1d4` total 2, amount 4)
 - 소지품: `등대 기름` 소비, `놋쇠 열쇠` 유지, `낡은 손전등` 유지
@@ -378,11 +407,13 @@ Cursor는 점수를 매기지 않는다. 실제 원문만 제출한다.
 - 중복 제출: 5회 모두 차단, GM 호출/과금 없음
   - R3–R5: “이미 제출했습니다.”
   - R1–R2: “이동력이 부족합니다.” (중복 확인이 pricing 뒤에 있는 문제)
-- 새로고침: final snapshot `CAMPAIGN_COMPLETE` 유지
+- 새로고침: final snapshot `CAMPAIGN_COMPLETE` 유지 (플래그 기준)
 - GM 호출: 6 (opening + 5), bot 0, retry 0
 - 토큰: 59,838 input / 13,682 output
-- 비용: $0.128248 (약 174.6원 @1361.2)
+- 비용: $0.128248 (약 174.6원 @1361.2) — **기록된 GM 소계**, background memory 비용 제외
 - 지연: 240,362 ms total, 평균 40.1s/call
+
+> 정정: 이 실행의 “성공”은 완료 플래그 기준이다. 최종 위치/서술 일치는 실패했으며, R0 원본은 미보존 탐색 실행과 마찬가지로 성공 실행으로 대체하지 않는다. JEV binary 혼동행렬과 recall은 §0을 따른다.
 
 ### 재미 원문에서 확인된 것
 
@@ -415,6 +446,8 @@ Cursor는 점수를 매기지 않는다. 실제 원문만 제출한다.
 ---
 
 ## 12. 이번 PR의 범위
+
+> 이 절은 R0 원본 PR(#1793) 기준 범위다. R1 구현은 같은 브랜치의 별도 제품 PR에서 `actionContract.ts`, `endingDecision.ts`, `progression.ts`, 전투/성장 JSX를 추가했다.
 
 - 포함:
   - 이 설계 문서

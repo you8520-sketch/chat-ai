@@ -1,0 +1,38 @@
+{
+  "schema": "trpg-r1.c45-farewell-replay.v1",
+  "source": "hav-rp-evidence-private cases/trpg-p3-5z-2026-10-30-c45-r12-farewell",
+  "productionCampaignId": 45,
+  "note": "Local replay only. No production call, no production DB write.",
+  "publicStateAtR12": {
+    "campaignStatus": "ACTION_INPUT",
+    "round": 12,
+    "location": "출입문",
+    "goals": [
+      {
+        "id": "goal-9-1",
+        "status": "active",
+        "claimed": false
+      }
+    ]
+  },
+  "humanBody": "출입문 앞에서 두 사람과 찻집 주인에게 \"오늘은 여기까지 하자. 다들 조심히 돌아가.\"라고 마지막 작별 인사를 건넨다.",
+  "botBodies": {
+    "강이현": "NO_MOVE. 렌의 작별 인사에 가볍게 화답하며 문턱 너머로 나설 채비를 한다.",
+    "권태현": "NO_MOVE. 렌의 작별 인사에 능청스럽게 대답하며 문밖으로 나설 채비를 마친다."
+  },
+  "expected": {
+    "endingIntent": "farewell_npc",
+    "humanActs": [
+      {
+        "kind": "talk",
+        "commitment": "committed"
+      }
+    ],
+    "serverEndingDecision": "none",
+    "reason": "NPC farewell is not an explicit campaign close, so the server keeps ACTION_INPUT."
+  },
+  "counterfactual": {
+    "body": "출입문 앞에서 두 사람과 찻집 주인에게 마지막 작별 인사를 건넨다. 이 모험을 끝낸다.",
+    "expectedEndingIntent": "campaign_close"
+  }
+}

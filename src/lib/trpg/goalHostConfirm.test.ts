@@ -654,6 +654,90 @@ describe("host confirmation: rollback and re-upgrade", () => {
     db.close();
   });
 
+  it("host confirm finishes from the same committed close round, with no extra paid action and no reopened round", async () => {
+    const db = new Database(":memory:");
+    const { campaignId, hostSeat } = await claimedParty(db);
+    const latest = db
+      .prepare(
+        `SELECT r.id, r.round_number FROM trpg_rounds r
+         JOIN trpg_gm_messages m ON m.round_id=r.id
+         WHERE r.campaign_id=? ORDER BY r.round_number DESC LIMIT 1`
+      )
+      .get(campaignId) as { id: number; round_number: number };
+    const closePlan = {
+      version: 1,
+      proposal: {
+        version: 1,
+        actorParticipantId: hostSeat,
+        sourceText: "이 모험을 끝낸다.",
+        acts: [],
+        endingIntent: "campaign_close",
+        clarification: null,
+        owner: "server-rule-v1",
+      },
+      acts: [
+        {
+          index: 0,
+          kind: "other",
+          actorParticipantId: hostSeat,
+          evidence: "이 모험을 끝낸다.",
+          commitment: "committed",
+          status: "planned",
+          apCost: 0,
+          needsCheck: false,
+          source: "human_text",
+        },
+      ],
+      executedText: "이 모험을 끝낸다.",
+      unexecuted: [],
+      endingIntent: "campaign_close",
+      createdAt: "2026-10-31T00:00:00.000Z",
+    };
+    db.prepare(
+      `UPDATE trpg_action_submissions SET action_plan_json=? WHERE round_id=? AND participant_id=?`
+    ).run(JSON.stringify(closePlan), latest.id, hostSeat);
+    const ledger = loadCampaignLedger(db, campaignId);
+    persistCampaignLedger(db, campaignId, latest.round_number, {
+      ...ledger,
+      quests: [TITLE],
+      goals: ledger.goals.filter((goal) => goal.title === TITLE),
+    });
+    const usageRows = () =>
+      (db.prepare(`SELECT COUNT(*) AS n FROM trpg_rounds WHERE usage_json IS NOT NULL OR gm_reroll_usage_json IS NOT NULL`).get() as { n: number }).n;
+    const usageBefore = usageRows();
+    const pointsBefore = getPointBalanceOnDb(db, 1);
+
+    const { outcome, campaign } = answer(db, campaignId, 1, "confirm");
+    assert.equal(outcome, "confirmed");
+    assert.equal(campaign.campaignStatus, "CAMPAIGN_COMPLETE");
+    assert.equal(usageRows(), usageBefore, "host confirm itself calls no provider");
+    assert.deepEqual(getPointBalanceOnDb(db, 1), pointsBefore, "host confirm itself bills nothing");
+
+    const maxRound = (db.prepare(`SELECT MAX(round_number) AS n FROM trpg_rounds WHERE campaign_id=?`).get(campaignId) as { n: number }).n;
+    assert.equal(maxRound, latest.round_number, "the empty reopened round was closed instead of leaving ACTION_INPUT");
+    assert.equal(
+      db.prepare(`SELECT status FROM trpg_campaigns WHERE id=?`).get(campaignId)!.status,
+      "CAMPAIGN_COMPLETE"
+    );
+    const stored = db.prepare(`SELECT structured_json FROM trpg_gm_messages WHERE round_id=?`).get(latest.id) as {
+      structured_json: string;
+    };
+    const parsed = JSON.parse(stored.structured_json) as Record<string, unknown>;
+    assert.equal(parsed.effectiveCampaignFinished, true);
+    assert.deepEqual(parsed.endingDecision, { kind: "end", reason: "explicit_campaign_close" });
+    const growth = db
+      .prepare(
+        `SELECT level, xp, stat_points FROM trpg_character_sheets WHERE participant_id=?`
+      )
+      .get(hostSeat) as { level: number; xp: number; stat_points: number };
+    assert.deepEqual([growth.level, growth.xp, growth.stat_points], [2, 100, 1]);
+    const reconnect = loadTrpgSnapshot(db, campaignId, 1)!;
+    assert.equal(reconnect.campaignStatus, "CAMPAIGN_COMPLETE");
+    assert.equal(reconnect.storyPhase, "FINISHED");
+    assert.ok(!reconnect.currentNarration?.trim().endsWith("?"));
+    db.close();
+  });
+
   it("a pending proposal that the production build removed from quests_json is retired on re-upgrade, never completed", async () => {
     const db = new Database(":memory:");
     const { campaignId } = await claimedParty(db);

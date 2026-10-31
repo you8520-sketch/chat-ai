@@ -31,7 +31,7 @@
 | command legality | `explorationMap.ts` `legalExplorationCommands` | `submitTrpgAction` / bot move plan | REUSE |
 | settlement | `explorationMap.ts` `settleExplorationActor` | `explorationStore.planExplorationCommit` → `engineAdvance` commit | REUSE |
 | state persistence | `explorationStore.ts` `loadExplorationState` / `saveExplorationState` | `trpg_campaign_context.exploration_json` | REUSE |
-| free-text movement inference | `explorationMap.ts` `explorationCommandsFromMovementBody` + `movementDeclaration.ts` | `submitTrpgAction` | REPLACE (semantic proposal가 destination을 제안; server가 command로 확정) |
+| free-text movement inference | `explorationMap.ts` `explorationCommandsFromMovementBody` + `movementDeclaration.ts` | bot structured/fallback path only | REPLACED for human submit (`actionContract.ts` proposal → plan). Bot structured move plan remains the bot's explicit command channel. |
 | public projection | `explorationPublic.ts`, `explorationStore.projectExplorationForViewer` | snapshot | REUSE |
 
 로컬 검증: move 1 + search 1 = AP 2/3, locked route, item reward, hazard, encounter strike 모두 기존 owner로 동작했다.
@@ -46,8 +46,8 @@
 | item offers/accept | `itemAcceptance.ts` `resolveTrpgItemAcceptance` / `grantAcceptedItems` / `stripUnacceptedItemProposals` | `submitTrpgAction`, `commitPendingGmResult` | REUSE / PROTECT |
 | sheet display | `sheetSurface.ts` `buildTrpgSheetSurface`, `sheetJsxSource.ts` | `TrpgCampaignRoom.tsx`, `JsxComponentSandbox.tsx` | REUSE |
 | HP damage | `mechanicsResolve.ts` `resolveRoundMechanics`, `encounterStrikes.ts` `resolveThreatStrikes` | `mechanicsRound.ts` → commit | REUSE / PROTECT |
-| level/XP/growth | — | `trpg_character_sheets.level` is display-only; no XP/level-up/stat-growth writer | **NOT FOUND** |
-| combat JSX | — | sheet JSX shows HP/conditions/inventory/mechanics lines; `TrpgRollResultLane` shows d20; no dedicated combat/battle component | **PARTIAL / NOT FOUND** |
+| level/XP/growth | `progression.ts` `grantTrpgCampaignCompletionXp` / `spendTrpgStatPoint`, `trpg_character_sheets.xp/stat_points`, `trpg_campaigns.completion_xp_awarded` | completion finalize + `POST /api/trpg/campaigns/[id]/growth` | **IMPLEMENTED (R1, campaign-sheet only)** |
+| combat JSX | `snapshot.ts` `TrpgPublicCombat`, `engineSnapshot.ts` projection, `sheetSurface.ts` / `sheetJsxSource.ts` combat block | sheet JSX | **IMPLEMENTED (R1 minimal)** |
 
 중요: `sheetSurface.level`와 `sheetJsxSource`의 `Lv {level}`는 표시 필드다. 성장 로직이 아니다.
 
@@ -82,10 +82,10 @@
 |---|---|---|---|
 | goal lifecycle | `campaignGoals.ts` `reconcileGoals`, `applyGoalTransition`, `completeVerifiedGoals`, `answerGoalClaim` | `campaignLedger.applyCampaignLedger`, `goalConfirm.answerTrpgGoalClaim` | CONSOLIDATE |
 | goal persistence | `campaignLedger.ts` `persistCampaignLedger`, `trpg_campaign_state.goals_json` | commit / goal confirm | REUSE |
-| goal claim host answer | `goalConfirm.ts` `answerTrpgGoalClaim` | `api/trpg/campaigns/[id]/goal-claim` | REUSE (inline ending decision) |
+| goal claim host answer | `goalConfirm.ts` `answerTrpgGoalClaim` + `endingDecision.ts` `finalizeHostConfirmedEnding` | `api/trpg/campaigns/[id]/goal-claim` | **IMPLEMENTED (R1 inline ending; no extra action)** |
 | story phase | `campaignContext.ts` `applyCampaignStoryProgress` + `scenarioPlan.ts` `applyStoryPhaseTransition` | `runGmForRound` / commit | CONSOLIDATE |
 | local scene | `localSceneProgress.ts` `applyLocalSceneProgressDelta`, `resolveRoutineTraversalSceneTransition` | `campaignContext.applyLocalSceneProgressToContext`, GM prompt | CONSOLIDATE |
-| finish predicate | `engineAdvance.ts` `resolveEffectiveCampaignFinished`, `campaignFinishWouldStand` | `runGmForRound` / `commitPendingGmResult` | REPLACE with `EndingDecision` |
+| finish predicate | `engineAdvance.ts` `evaluateTrpgEndingDecision` / `endingDecision.ts` is the new owner; `resolveEffectiveCampaignFinished`, `campaignFinishWouldStand` remain as legacy fallback for rounds without a human plan | `runGmForRound` / `commitPendingGmResult` | **REPLACED for new rounds; legacy fallback preserved** |
 | finish recovery | `engineAdvance.ts` `campaignFinishedForRecovery`, `readStoredGmFinish` | recovery | REUSE (reads new decision) |
 | scenario ending conditions | `scenarioPlan.ts` `effectiveEndingConditionsForGm`, `endingConditions` | GM prompt | REUSE (server evaluates) |
 | client complete flag | `engineSnapshot.ts` / snapshot | UI | ADD `campaignCompleteReason` / `endingDecision` projection |

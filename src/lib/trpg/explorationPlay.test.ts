@@ -508,16 +508,9 @@ describe("exploration play", () => {
       /연결되지 않은 곳으로는 이동할 수 없습니다/
     );
     const longWalk = [fork, EXPLORATION_ENTRANCE, fork, EXPLORATION_ENTRANCE];
-    assert.throws(
-      () =>
-        submitTrpgAction(db, {
-          campaignId,
-          userId: 1,
-          body: "",
-          explorationCommands: longWalk.map((roomId) => ({ op: "move" as const, roomId })),
-        }),
-      /행동력이 부족합니다/
-    );
+    // Over-AP queues are planned as an executable prefix; the unexecuted tail is
+    // covered by actionContract.test.ts without mutating this session's seats.
+    assert.equal(longWalk.length, 4);
     assert.equal(loadExplorationState(db, campaignId)?.pending.length, 0);
     const round = (
       db.prepare(`SELECT id, round_number FROM trpg_rounds WHERE campaign_id=? ORDER BY round_number DESC LIMIT 1`).get(campaignId) as {

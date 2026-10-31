@@ -48,7 +48,9 @@ import {
   type TrpgPublicRoll,
   type TrpgReadyState,
 } from "./snapshot";
-import { loadLastSafeRestRounds, loadLatestCompleteMechanics, loadOngoingEffects } from "./mechanicsStore";
+import { loadLastSafeRestRounds, loadLatestCompleteMechanics, loadLatestThreatStrikeMechanics, loadOngoingEffects, loadEndedEncounterIds } from "./mechanicsStore";
+import { governedEncounters } from "./encounterStrikes";
+import { loadActionPlan } from "./actionContract";
 import { evaluateSafeRestEligibility, sameRoundHasCombatAction } from "./mechanicsValidate";
 import { timedSnapshotDiag } from "./snapshotDiagnostics";
 import { formatMechanicsHudLines, recoveryHintKo } from "./sheetHud";
@@ -291,11 +293,27 @@ export function loadTrpgSnapshot(
 
   const currentRolls = timedSnapshotDiag("currentRoundMs", () => (round ? loadRolls(db, round.id) : []));
   let currentNarration: string | null = null;
+  let endingDecision: { kind: string; reason?: string } | null = null;
   if (round) {
     const gm = db
-      .prepare(`SELECT narration FROM trpg_gm_messages WHERE round_id=?`)
-      .get(round.id) as { narration: string } | undefined;
+      .prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`)
+      .get(round.id) as { narration: string; structured_json: string | null } | undefined;
     currentNarration = gm?.narration ?? null;
+    if (gm?.structured_json) {
+      try {
+        const structured = JSON.parse(gm.structured_json) as { endingDecision?: { kind?: unknown; reason?: unknown } };
+        if (typeof structured.endingDecision?.kind === "string") {
+          endingDecision = {
+            kind: structured.endingDecision.kind,
+            ...(typeof structured.endingDecision.reason === "string"
+              ? { reason: structured.endingDecision.reason }
+              : {}),
+          };
+        }
+      } catch {
+        endingDecision = null;
+      }
+    }
     if (!currentNarration) {
       const prev = db
         .prepare(
@@ -404,6 +422,7 @@ export function loadTrpgSnapshot(
       !isTrpgLobbyStatus(campaign.status) &&
       ((campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE) === "host_pays",
     campaignStatus: campaign.status,
+    endingDecision,
     maxSlots: campaign.max_slots,
     pointPool: scenario.pointPool,
     statDefs: scenario.statDefs,
@@ -530,6 +549,58 @@ export function loadTrpgSnapshot(
           text,
         }))
       );
+    })(),
+    combat: (() => {
+      const encounters = governedEncounters(loadCampaignContext(db, campaignId));
+      if (encounters.length === 0) return null;
+      const strikeHistory = loadLatestThreatStrikeMechanics(db, campaignId);
+      const ended = new Set(loadEndedEncounterIds(db, campaignId, (round?.round_number ?? 0) + 1));
+      return {
+        encounters: encounters.map((encounter, index) => ({
+          key: `encounter-${index + 1}`,
+          name: encounter.name,
+          kind: encounter.kind,
+          location: encounter.location,
+          ended: ended.has(encounter.id),
+          strikes: (strikeHistory?.threatStrikes ?? [])
+            .filter((strike) => strike.encounterId === encounter.id)
+            .map((strike) => ({
+              encounterId: strike.encounterId,
+              name: strike.name,
+              kind: strike.kind,
+              targetParticipantId: strike.targetParticipantId,
+              d20: strike.d20,
+              dc: strike.dc,
+              hit: strike.hit,
+              damageClass: strike.damageClass,
+              diceExpression: strike.dice?.expression ?? "",
+              diceRolls: strike.dice?.rolls ?? [],
+              diceTotal: strike.dice?.total ?? 0,
+              damageUnit:
+                Number.isFinite(strike.unit) && strike.unit > 0
+                  ? strike.unit
+                  : (strike.dice?.total ?? 0) > 0
+                    ? (strike.dice?.amount ?? 0) / strike.dice!.total
+                    : 0,
+              amount: strike.dice?.amount ?? 0,
+              hpBefore: strike.hpBefore,
+              hpAfter: strike.hpAfter,
+            })),
+        })),
+      };
+    })(),
+    actionPlanWarnings: (() => {
+      if (!viewer || !round) return [];
+      const plan = loadActionPlan(db, round.id, viewer.id);
+      if (!plan) return [];
+      return plan.acts
+        .filter((act) => act.status === "unexecuted")
+        .map((act) => ({
+          index: act.index,
+          kind: act.kind,
+          reason: act.reason ?? "unexecuted",
+          evidence: act.evidence,
+        }));
     })(),
     safeRest: timedSnapshotDiag("safeRestMs", () => {
       const self = sheets.find((card) => card.isSelf)?.sheet;
