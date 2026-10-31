@@ -390,6 +390,8 @@ Cursor는 점수를 매기지 않는다. 실제 원문만 제출한다.
 - Success/failure divergence: 조사 3회 성공(18/17/16) → 단서/아이템/경로; threat strike HIT(12 vs DC 12) → HP 40→36.
 - Natural ending: 마지막 GM 문장은 “여정을 마무리했다.”로 끝나고 다음 행동 질문이 없다.
 - 성장: XP/레벨업 owner가 없어 이번 플레이에 포함하지 않았다. 다음 연결 단계는 `level` 표시 필드가 아니라 별도 progression owner를 만드는 것이며, 이번 계약에는 넣지 않는다.
+- 로컬 한계: 로컬 등록 캐릭터 `렌 id=9820011`은 description/greeting/system_prompt가 비어 있어 이름과 최소 로컬 전용 persona만 사용했다. 운영 캐릭터 데이터는 복사하지 않았다.
+- 봇 한계: 이번 완주 플레이는 human + GM NPC로 진행해 유료 bot 호출은 0회다. 봇의 동일 실행 경로는 코드 map/설계로만 다뤘고 실제 봇 플레이로 검증하지 않았다.
 
 ---
 
