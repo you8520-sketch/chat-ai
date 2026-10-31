@@ -73,6 +73,11 @@ Key findings:
   the Elin 100-turn dialogue and not an answer key.
 - The 24-turn detail experiment does not establish a 100-turn per-turn structure.
 
+## Cleanup / integration candidates
+
+`docs/b63-r1/cleanup-candidates.md` lists SAFE TO DELETE / KEEP / FOLLOW-UP candidates
+with evidence. No deletion or integration is performed in this PR.
+
 ## Next paid comparison (design only, not executed)
 
 Stratify by distance (RAW / recent summary / older) × question type (explicit recall /
@@ -93,4 +98,5 @@ history is fabricated from the 100-turn source. Full design:
 
 - `docs/b63-r1/owner-map.md` — current owner map plus R1 verified details
 - `docs/b63-r1/next-comparison-design.md` — stratified design and pre-registered criteria
+- `docs/b63-r1/cleanup-candidates.md` — SAFE TO DELETE / KEEP / FOLLOW-UP list, evidence only
 - `docs/b63-r1/README.md` — this correction summary
