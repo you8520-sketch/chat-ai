@@ -1,0 +1,183 @@
+{
+  "schema": "trpg-r0.jev-20-korean-cases.v1",
+  "labelSource": "human-authored gold labels before any JEV call; every label has a rationale and source. JEV is not treated as ground truth.",
+  "dimensions": {
+    "action": [
+      "move",
+      "wait_stay",
+      "observe",
+      "talk",
+      "social_gesture",
+      "force_attempt",
+      "social_attempt",
+      "item_take",
+      "item_use",
+      "mixed_move_item",
+      "ambiguous"
+    ],
+    "commitment": ["committed", "conditional", "negated", "quoted_only", "mentioned"],
+    "ending": ["farewell_end", "continue_play", "no_ending_signal"]
+  },
+  "items": [
+    {
+      "id": "C01",
+      "source": "campaign 45 R13 human original",
+      "context": "모밀찻집 출입문. 렌은 문밖으로 나가려 하고, 권태현과 강이현은 문 안쪽에 있다. 주인은 계산대 쪽에 있다.",
+      "text": "유리문을 연다. 출입문 밖으로 한 걸음 나선다. 두 사람을 바라보며 고개를 끄덕인다. \"잘 가. 오늘은 여기까지다.\"",
+      "gold": { "action": "move", "commitment": "committed", "ending": "farewell_end" },
+      "rationale": "The actor opens the door and steps outside; the quoted line is a farewell. The move is a committed act, not a mention or condition."
+    },
+    {
+      "id": "C02",
+      "source": "campaign 45 R14 human original",
+      "context": "렌은 이미 문밖에 서 있고, 두 동료는 출입문 안쪽에 있다. 주인이 볶은 메밀 봉투를 내밀고 있다.",
+      "text": "숨을 고른다.",
+      "gold": { "action": "wait_stay", "commitment": "committed", "ending": "continue_play" },
+      "rationale": "Breathing is a stay-in-place beat. It does not declare an exit or an ending, even though the scene is near its close."
+    },
+    {
+      "id": "C03",
+      "source": "campaign 45 R13 권태현 bot lock original",
+      "context": "렌이 문밖으로 나간 직후. 권태현의 시트 위치는 출입문이며, 봇 잠금 본문은 문턱을 넘는 동작을 서술한다.",
+      "text": "문밖에서 밀려드는 밤공기는 비가 갠 뒤 특유의 축축하고 서늘한 냄새를 머금고 있었다. 권태현은 방수 재킷 주머니에 대충 찔러 넣었던 손을 슬쩍 빼내 목덜미의 뻐근한 근육을 쓸어내렸다. 렌이 먼저 문턱을 밟고 서서 담백하게 마침표를 찍는 모습을 보자, 입꼬리가 자연스럽게 비뚤어지게 올라갔다. \"그래, 공주님 행차하시는데 길이라도 터드려야지. 빗물 밟고 미끄러져서 추태 부리지 말고 똑바로 걸어가라.\" 그는 짐짓 거들먹거리는 투로 낮게 픽 웃음을 흘리며, 렌의 뒤를 따라 자연스럽게 출입문 문턱 너머 밤거리 쪽으로 긴 다리를 내딛었다. <<<ACTION_TYPE>>> free <<<INTENT>>> 렌의 작별 인사를 받아치며 출입문 문턱을 넘어 밤거리로 발걸음을 옮긴다.",
+      "gold": { "action": "move", "commitment": "committed", "ending": "farewell_end" },
+      "rationale": "The bot's own intent line says it crosses the threshold. This is a committed move and a farewell response. The server sheet still says 출입문, which is a separate server-fact mismatch."
+    },
+    {
+      "id": "C04",
+      "source": "campaign 45 R14 강이현 bot lock original",
+      "context": "렌은 문밖, 권태현과 강이현은 출입문 안쪽. 강이현은 렌에게 선물을 챙기라고 말한다.",
+      "text": "유리문 틈으로 스며드는 서늘한 밤공기가 목덜미를 스치자 강이현은 대충 걸치고 있던 방수 코트 깃을 슬쩍 여몄다. 젖은 우산대를 손가락 끝으로 능숙하게 돌리며 문밖으로 나선 렌과 주인이 내민 손가방을 훑는 그의 입꼬리엔 여전히 특유의 느물거리는 호선이 걸려 있었다. \"비도 딱 맞게 그쳤는데 얼른얼른 가자고. 노인장 선물 챙겼으면 뒤도 돌아보지 말고 튀는 게 상도덕이지, 안 그래?\" 그는 주인이 내미는 메밀 봉투 손가방 쪽을 턱짓으로 가볍게 가리키며, 렌과 권태현이 완전히 밤거리로 빠져나갈 수 있도록 출입문 안쪽에서 반 발짝 물러서 길을 틔워 두었다. <<<ACTION_TYPE>>> free <<<INTENT>>> 출입문 안쪽에서 길을 터주며 렌에게 선물을 챙겨 귀가하라고 능청스럽게 말을 건넨다.",
+      "gold": { "action": "wait_stay", "commitment": "committed", "ending": "continue_play" },
+      "rationale": "The bot explicitly stays inside the door and steps back. Its speech urges the human to leave, but the bot's own act is a stay."
+    },
+    {
+      "id": "C05",
+      "source": "authored from campaign 45 R14 gift offer",
+      "context": "주인이 문밖으로 볶은 메밀 봉투를 내밀고 있다. 렌은 선물을 받지 않고 귀가하려 한다.",
+      "text": "선물은 사양하고 문밖으로 나간다.",
+      "gold": { "action": "move", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "The actor declines the gift and commits to leaving, but does not say farewell. Exit alone is not automatically a farewell/ending signal."
+    },
+    {
+      "id": "C06",
+      "source": "trpg-vnext action corpus A11",
+      "context": "폐건물 안. 문 앞에 서 있다.",
+      "text": "문을 열고 복도로 나간다.",
+      "gold": { "action": "move", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "Routine committed movement. No farewell or campaign-ending language."
+    },
+    {
+      "id": "C07",
+      "source": "trpg-vnext action corpus A12",
+      "context": "밤의 골목. 광장으로 이어지는 길이 보인다.",
+      "text": "골목을 따라 걸어 광장으로 간다.",
+      "gold": { "action": "move", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "A committed route traversal to a named destination. No ending signal."
+    },
+    {
+      "id": "C08",
+      "source": "trpg-vnext action corpus A05",
+      "context": "문 앞. 상대의 응답을 기다리는 상황.",
+      "text": "문 앞에서 잠시 기다린다.",
+      "gold": { "action": "wait_stay", "commitment": "committed", "ending": "continue_play" },
+      "rationale": "Waiting is a stay action and keeps the scene open."
+    },
+    {
+      "id": "C09",
+      "source": "trpg-vnext action corpus A06",
+      "context": "문 안쪽. 상대가 문을 막고 있다.",
+      "text": "\"문을 부수겠어!\" 하고 소리친다.",
+      "gold": { "action": "talk", "commitment": "quoted_only", "ending": "no_ending_signal" },
+      "rationale": "The only committed act is speaking. The quoted threat is not a committed attempt to break the door."
+    },
+    {
+      "id": "C10",
+      "source": "trpg-vnext action corpus A07",
+      "context": "무장한 상대와 마주 선 상황.",
+      "text": "칼을 뽑지 않고 두 손을 펼쳐 보인다.",
+      "gold": { "action": "social_gesture", "commitment": "negated", "ending": "no_ending_signal" },
+      "rationale": "The actor explicitly does not draw a weapon and performs a non-threatening gesture. The negation scopes over drawing the sword, not over the gesture."
+    },
+    {
+      "id": "C11",
+      "source": "trpg-vnext action corpus A15",
+      "context": "어두운 골목. 상대가 다가오고 있다.",
+      "text": "그가 칼을 들고 다가온다는 것을 알아차린다.",
+      "gold": { "action": "observe", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "The actor perceives another person's movement. The actor does not move; the movement belongs to the other person."
+    },
+    {
+      "id": "C12",
+      "source": "trpg-vnext action corpus R01",
+      "context": "잠긴 문. 시간이 없다.",
+      "text": "잠긴 문을 어깨로 부순다.",
+      "gold": { "action": "force_attempt", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "A committed physical attempt with uncertain success. It needs a check, but the attempt itself is real."
+    },
+    {
+      "id": "C13",
+      "source": "trpg-vnext action corpus R03",
+      "context": "날아오는 칼날. 방패를 들고 있다.",
+      "text": "날아오는 칼날을 방패로 막는다.",
+      "gold": { "action": "force_attempt", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "A committed defensive attempt under immediate risk."
+    },
+    {
+      "id": "C14",
+      "source": "trpg-vnext action corpus R04",
+      "context": "경비병이 지키는 통로. 정면 충돌은 피하고 싶다.",
+      "text": "경비병을 속여 통과하려 한다.",
+      "gold": { "action": "social_attempt", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "A committed deception attempt with contested uncertainty."
+    },
+    {
+      "id": "C15",
+      "source": "authored from campaign 45 R14 gift offer",
+      "context": "주인이 문밖으로 볶은 메밀 봉투를 내밀고 있다.",
+      "text": "주인이 내미는 메밀 봉투를 받아 든다.",
+      "gold": { "action": "item_take", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "A committed receipt of a specific offered item. It is not a movement and not a use."
+    },
+    {
+      "id": "C16",
+      "source": "authored from existing item-use contract",
+      "context": "부상당한 동료가 눈앞에 있다. 소지품에 약초가 있다.",
+      "text": "약초를 꺼내 상처에 바른다.",
+      "gold": { "action": "item_use", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "A committed use of a carried item on a wound."
+    },
+    {
+      "id": "C17",
+      "source": "trpg-vnext mixed-action requirement",
+      "context": "문밖으로 나가야 하고, 소지품에 회복약이 있다.",
+      "text": "문을 나서며 회복약을 마신다.",
+      "gold": { "action": "mixed_move_item", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "One sentence contains a committed move and a committed item use. The design must not reject it just because it has two acts; it should order and price the legal parts."
+    },
+    {
+      "id": "C18",
+      "source": "trpg-vnext conditional requirement",
+      "context": "경비병이 순찰 중이다. 아직 문을 열 수 없다.",
+      "text": "경비병이 지나가면 문을 열고 나간다.",
+      "gold": { "action": "move", "commitment": "conditional", "ending": "no_ending_signal" },
+      "rationale": "The movement is conditioned on the guard leaving. It is not committed this round."
+    },
+    {
+      "id": "C19",
+      "source": "trpg-vnext negation requirement",
+      "context": "문밖은 위험하다. 일행은 안쪽에 남아 상황을 지켜보려 한다.",
+      "text": "문밖으로 나가지 않고 안쪽에 남아 상황을 지켜본다.",
+      "gold": { "action": "wait_stay", "commitment": "negated", "ending": "continue_play" },
+      "rationale": "The exit is explicitly negated; the committed act is staying and watching. The negation must not be read as an exit."
+    },
+    {
+      "id": "C20",
+      "source": "trpg-vnext action corpus C01",
+      "context": "포박한 상대가 눈앞에 있다. 주변에 다른 사람은 없다.",
+      "text": "그를 처리한다.",
+      "gold": { "action": "ambiguous", "commitment": "committed", "ending": "no_ending_signal" },
+      "rationale": "High-stakes but underspecified. The safe behavior is one short clarification, not an invented kill or an invented release."
+    }
+  ]
+}
