@@ -812,7 +812,11 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
       message: "creator comment start line must be character-specific, not a shared generic cue",
     });
   }
-  if (/고르세요|중에서 먼저|첫 수를 정해|선택지|에피소드/.test(commentPlain)) {
+  // Only alternate-start offers are rejected: a scene-level choice or question
+  // ("선택지를 적다", "함께 확인해 보세요") is a normal play guide.
+  const SELECTABLE_START_RE =
+    /(?:다른|새로운?|별도의?)\s*(?:시작|도입|에피소드)|(?:시작|도입)\s*(?:장면|지점|방식)\s*(?:을|를|중|에서)|에피소드\s*(?:를|중|선택|고르)|(?:선택지|선택)\s*(?:에서|로)\s*(?:시작|고르)|원하는\s*(?:시작|도입|에피소드)|고르세요/;
+  if (SELECTABLE_START_RE.test(commentPlain)) {
     errors.push({
       code: "creator_comment_selectable_start",
       message: "creator comment must not imply selectable alternate starts or episodes; runtime has a single greeting",
