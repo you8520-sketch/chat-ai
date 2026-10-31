@@ -184,6 +184,8 @@ type EndingDecision =
 
 ## 5. JEV 채택 범위
 
+상세 비교: `JEV-20-CASE-COMPARISON.md` (원본은 evidence PR #54).
+
 ### 5.1 채택
 
 - JEV는 **action/commitment proposal**로만 쓴다.
