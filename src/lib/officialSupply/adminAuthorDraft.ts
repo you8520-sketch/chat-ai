@@ -40,7 +40,7 @@ import {
   type OfficialCharacterBible,
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
-import { buildOfficialCharacterFormBody, computeTextLockHash } from "@/lib/officialSupply/characterText";
+import { buildOfficialCharacterFormBody, computeTextLockHash, mergeQa } from "@/lib/officialSupply/characterText";
 import {
   OFFICIAL_HUMOR_LEVELS,
   OFFICIAL_NAME_WORDPLAY,
@@ -69,7 +69,7 @@ import {
 import { projectOfficialSharedWorld } from "@/lib/officialSupply/officialSharedWorld";
 import { validateResearchSnapshot, type ResearchSnapshot } from "@/lib/officialSupply/research";
 import { OfficialSupplyGateError, type OfficialWorldProjectionDiagnostic } from "@/lib/officialSupply/store";
-import type { OfficialCharacterDraft, QaIssue } from "@/lib/officialSupply/types";
+import { qaResult, type OfficialCharacterDraft, type QaIssue, type QaResult } from "@/lib/officialSupply/types";
 import { evaluateInternalRegionConsistency, internalWorldRegions } from "@/lib/officialSupply/worldQa";
 import {
   evaluateUserRelationPremise,
@@ -140,6 +140,7 @@ export type AdminAuthorPreviewOk = {
   previewId: string;
   qaOk: boolean;
   issues: AdminAuthorIssue[];
+  warnings: AdminAuthorIssue[];
   repairable: boolean;
   voiceRepairs: number;
   /** Authoring mode this preview was generated in. */
@@ -181,6 +182,7 @@ type Hold = {
   castIntent: string;
   experience?: OfficialCharacterExperience;
   issues: QaIssue[];
+  warnings: QaIssue[];
   voiceRepairs: number;
   savedCharacterId: number | null;
   /** True only when `createCharacterFromForm` finished without throw. */
@@ -358,23 +360,26 @@ export function assessAdminAuthorManuscript(input: {
   brief: PortfolioBriefInput;
   /** Authoring mode the draft was produced in. */
   adult?: boolean;
-}): QaIssue[] {
+}): QaResult {
   const hook = {
     archetype: input.brief.archetype,
     relationshipTrope: input.brief.relationshipTrope,
     rpHook: input.brief.rpHook,
   };
   const genre = input.draft.genres.find((item) => isCharacterGenre(item));
-  return [
-    ...validatePilotBible(input.bible, { adultExpected: input.adult === true }).errors,
-    ...evaluateDiscoveryTags(
+  const qa = mergeQa(
+    validatePilotBible(input.bible, { adultExpected: input.adult === true }),
+    evaluateDiscoveryTags(
       { tags: input.bible.publicProfile.tags, bible: input.bible, hook, ...(genre ? { genre } : {}) },
       MARKET_POLICY
-    ).errors,
-    ...validatePilotDraftForTextLock(input.draft, []).errors,
-    ...evaluateRelationBibleContract(input.bible).errors,
-    ...validatePilotLorebook(input.world.lorebook, [input.draft]).errors,
-  ];
+    ),
+    validatePilotDraftForTextLock(input.draft, []),
+    evaluateRelationBibleContract(input.bible),
+    validatePilotLorebook(input.world.lorebook, [input.draft])
+  );
+  // Relation and text-lock checks share owners; report each finding once.
+  const unique = (issues: QaIssue[]) => [...new Map(issues.map((issue) => [JSON.stringify([issue.code, issue.message]), issue])).values()];
+  return qaResult(unique(qa.errors), unique(qa.warnings));
 }
 
 function unsavedHoldCount(excludeId?: string): number {
@@ -458,20 +463,28 @@ function resolvedView(plan: OfficialAuthoringPlan, castIntent: string): AdminAut
   };
 }
 
-function publicPreview(hold: Hold): AdminAuthorPreviewOk {
-  const repairFields = officialVoiceFieldsForQaCodes(hold.issues.map((issue) => issue.code));
+/** One eligibility decision for the preview button and the repair endpoint. */
+function voiceRepair(hold: Hold) {
+  const reasons = [...hold.issues, ...hold.warnings].filter((issue) => officialVoiceFieldsForQaCodes([issue.code]).length > 0);
+  const fields = officialVoiceFieldsForQaCodes(reasons.map((issue) => issue.code));
   const repairable =
-    hold.issues.length > 0 &&
+    hold.savedCharacterId == null &&
+    !hold.saveBlocked &&
     hold.voiceRepairs < MAX_EXPLICIT_VOICE_REPAIRS &&
     hold.issues.every((issue) => officialVoiceFieldsForQaCodes([issue.code]).length > 0) &&
-    repairFields.length > 0;
+    fields.length > 0;
+  return { repairable, fields, reasons };
+}
+
+function publicPreview(hold: Hold): AdminAuthorPreviewOk {
   const creatorComment = hold.draft.creatorComment?.trim() ?? "";
   return {
     ok: true,
     previewId: hold.id,
     qaOk: hold.issues.length === 0,
     issues: hold.issues.map((issue) => ({ code: issue.code, message: issue.message })),
-    repairable,
+    warnings: hold.warnings.map((issue) => ({ code: issue.code, message: issue.message })),
+    repairable: voiceRepair(hold).repairable,
     voiceRepairs: hold.voiceRepairs,
     adult: hold.brief.adultCandidate === true,
     textLock: computeTextLockHash(hold.draft),
@@ -518,7 +531,7 @@ function holdManuscript(input: {
       rpHook: input.brief.rpHook,
     },
   });
-  const issues = assessAdminAuthorManuscript({ draft, bible: input.bible, world: input.world, brief: input.brief, adult: input.brief.adultCandidate });
+  const qa = assessAdminAuthorManuscript({ draft, bible: input.bible, world: input.world, brief: input.brief, adult: input.brief.adultCandidate });
   const hold: Hold = {
     id: randomBytes(16).toString("hex"),
     adminUserId: input.adminUserId,
@@ -530,7 +543,8 @@ function holdManuscript(input: {
     draft,
     castIntent: input.castIntent,
     ...(input.experience ? { experience: input.experience } : {}),
-    issues,
+    issues: qa.errors,
+    warnings: qa.warnings,
     voiceRepairs: input.voiceRepairs,
     savedCharacterId: null,
     saveComplete: false,
@@ -731,11 +745,11 @@ export async function repairHeldAdminAuthorPreview(input: {
 
   const inFlight = repairInFlight.get(input.previewId);
   if (inFlight) return inFlight;
+  if (saveInFlight.has(input.previewId)) return { ok: false, error: "저장 중인 원고는 보정할 수 없습니다." };
   if (hold.savedCharacterId != null) return { ok: false, error: "이미 저장된 초안은 에디터에서 수정합니다." };
-  if (hold.issues.length === 0) return { ok: false, error: "고칠 검수 오류가 없습니다." };
   if (hold.voiceRepairs >= MAX_EXPLICIT_VOICE_REPAIRS) return { ok: false, error: "선택 보정 횟수를 모두 사용했습니다." };
-  const fields = officialVoiceFieldsForQaCodes(hold.issues.map((issue) => issue.code));
-  const repairable = hold.issues.every((issue) => officialVoiceFieldsForQaCodes([issue.code]).length > 0) && fields.length > 0;
+  const { fields, reasons, repairable } = voiceRepair(hold);
+  if (hold.issues.length === 0 && fields.length === 0) return { ok: false, error: "선택 보정으로 고칠 오류나 경고가 없습니다." };
   if (!repairable) return { ok: false, error: "이 오류는 선택 보정으로 고칠 수 없습니다. 원고는 저장하지 않습니다." };
 
   const budget = new OfficialAuthorCallBudget(1);
@@ -778,7 +792,7 @@ export async function repairHeldAdminAuthorPreview(input: {
             ...(current.experience ? { experience: current.experience } : {}),
           },
           fields,
-          reasons: current.issues.map((issue) => `${issue.code}: ${issue.message}`),
+          reasons: reasons.map((issue) => `${issue.code}: ${issue.message}`),
         });
         const next = holdManuscript({
           adminUserId: current.adminUserId,
@@ -893,6 +907,7 @@ export async function saveHeldAdminAuthorPreview(admin: SessionUser, previewId: 
 
   const existingFlight = saveInFlight.get(previewId);
   if (existingFlight) return existingFlight;
+  if (repairInFlight.has(previewId)) return { ok: false, status: 409, error: "보정 중인 원고는 보정이 끝난 뒤 저장합니다." };
 
   let resolveFlight!: (result: SaveHeldResult) => void;
   const flight = new Promise<SaveHeldResult>((resolve) => {

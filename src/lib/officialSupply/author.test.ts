@@ -1495,8 +1495,18 @@ describe("official author adapter", () => {
 
     it("sparse Voice + adult Bonds reproduces the recorded final QA failure types", () => {
       const bible = assembleOfficialCharacterBible(fakeHalf1(), sparseVoice(), adultBondsWithSfwFlag());
-      const codes = codesOf(validatePilotBible(bible, { adultExpected: true }));
-      for (const code of SPARSE_VOICE_CODES) assert.ok(codes.includes(code), `${code} in ${codes.join(",")}`);
+      const qa = validatePilotBible(bible, { adultExpected: true });
+      const codes = codesOf(qa);
+      for (const code of SPARSE_VOICE_CODES) {
+        if (code === "bible_speech_band" || code === "bible_pitch_band") {
+          assert.ok(
+            qa.warnings.some((issue) => issue.code === code),
+            `${code} warning in ${qa.warnings.map((i) => i.code).join(",")}`
+          );
+        } else {
+          assert.ok(codes.includes(code), `${code} in ${codes.join(",")}`);
+        }
+      }
     });
 
     it("pins the recorded 2026-10-08 #1425 slot-2 quarantine codes to that sparse-Voice set", () => {

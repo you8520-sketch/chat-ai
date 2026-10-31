@@ -17,6 +17,7 @@ export type AdminAuthorPreviewExport = {
   previewId: string;
   qaOk: boolean;
   issues: { code: string; message: string }[];
+  warnings: { code: string; message: string }[];
   repairable: boolean;
   voiceRepairs: number;
   /** Authoring mode (general / adult) the preview was generated in. */
@@ -147,6 +148,7 @@ export function adminAuthorPreviewExportJson(preview: AdminAuthorPreviewExport):
       previewId: preview.previewId,
       qaOk: preview.qaOk,
       issues: preview.issues,
+      warnings: preview.warnings,
       repairable: preview.repairable,
       voiceRepairs: preview.voiceRepairs,
       adult: preview.adult,

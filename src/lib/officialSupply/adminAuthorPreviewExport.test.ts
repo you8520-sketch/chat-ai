@@ -16,6 +16,7 @@ const preview: AdminAuthorPreviewExport = {
   previewId: "abc",
   qaOk: false,
   issues: [{ code: "sfw_public_text_has_adult_terms", message: "all-ages public text contains adult terms" }],
+  warnings: [{ code: "bible_speech_band", message: "speech.description 131 chars (recommended band 250-600)" }],
   repairable: false,
   voiceRepairs: 0,
   adult: false,
@@ -55,9 +56,11 @@ describe("admin author preview export", () => {
       "resolved",
       "textLock",
       "voiceRepairs",
+      "warnings",
     ]);
     assert.equal(JSON.stringify(parsed).includes("hidden"), false);
     assert.equal(JSON.stringify(parsed).includes("systemPrompt"), false);
+    assert.deepEqual(parsed.warnings, preview.warnings);
     const manuscript = parsed.manuscript as { name: string; tags: string[] };
     assert.equal(manuscript.name, "강서윤 (테이프대장)");
     assert.deepEqual(manuscript.tags, ["생활"]);

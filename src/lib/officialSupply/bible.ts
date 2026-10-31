@@ -842,9 +842,11 @@ export function evaluateAuthorQualityContract(
   bible: Pick<OfficialCharacterBible, "greeting" | "speech" | "publicProfile">
 ): QaResult {
   const errors: QaIssue[] = [];
+  const warnings: QaIssue[] = [];
   const band = (code: string, label: string, value: number, range: { min: number; max: number }) => {
     if (value < range.min || value > range.max) {
-      errors.push(err(code, `${label} ${value} chars (production band ${range.min}-${range.max})`));
+      // Recommended length only: a short or long-but-valid sheet stays usable.
+      warnings.push(warn(code, `${label} ${value} chars (recommended band ${range.min}-${range.max})`));
     }
   };
   const C = OFFICIAL_AUTHOR_QUALITY_CONTRACT;
@@ -862,6 +864,7 @@ export function evaluateAuthorQualityContract(
   }
 
   const speech = bible.speech ?? ({} as OfficialCharacterBible["speech"]);
+  if (!nonEmpty(speech.description)) errors.push(err("bible_speech_missing", "speech.description is required"));
   band("bible_speech_band", "speech.description", (speech.description ?? "").length, C.speechDescription);
   const missing = SPEECH_COVERAGE_FIELDS.filter((key) => !nonEmpty(speech[key]));
   if (missing.length) errors.push(err("bible_speech_coverage", `speech missing ${missing.join(",")}`));
@@ -870,12 +873,13 @@ export function evaluateAuthorQualityContract(
   }
 
   const pitch = bible.publicProfile?.description ?? "";
+  if (!nonEmpty(pitch)) errors.push(err("bible_pitch_missing", "publicProfile.description is required"));
   band("bible_pitch_band", "publicProfile.description", pitch.length, C.publicDescription);
   if (nonEmpty(pitch) && !USER_CUE_RE.test(pitch)) {
     errors.push(err("bible_pitch_no_user", "public pitch must say what the user (당신) gets from this character"));
   }
   if (nonEmpty(pitch) && isFillerProse(pitch)) errors.push(err("bible_pitch_filler", "public pitch repeats itself"));
-  return qaResult(errors);
+  return qaResult(errors, warnings);
 }
 
 /**
