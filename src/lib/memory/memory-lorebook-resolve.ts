@@ -41,7 +41,7 @@ type GlobalCurrentMemoryCore = Omit<GlobalCurrentMemoryResolution, "manualBounda
 export function resolveGlobalCurrentMemory(
   chatId: number,
   maxChars: number,
-  opts?: { excludeTurnStartGte?: number; storedRecentSummary?: string }
+  opts?: { excludeTurnStartGte?: number; excludeTurnEndGte?: number; storedRecentSummary?: string }
 ): GlobalCurrentMemoryResolution {
   const memoryRow = getChatMemoryRow(chatId);
   const resolved = resolveGlobalCurrentMemoryCore(chatId, maxChars, memoryRow, opts);
@@ -58,7 +58,7 @@ function resolveGlobalCurrentMemoryCore(
   chatId: number,
   maxChars: number,
   memoryRow: ChatMemoryRow | null | undefined,
-  opts?: { excludeTurnStartGte?: number; storedRecentSummary?: string }
+  opts?: { excludeTurnStartGte?: number; excludeTurnEndGte?: number; storedRecentSummary?: string }
 ): GlobalCurrentMemoryCore {
   const rebuilt = rebuildLorebookFromRecords(chatId, opts).trim();
   const stored = opts?.storedRecentSummary?.trim() ?? memoryRow?.recent_summary?.trim() ?? "";
@@ -205,7 +205,7 @@ export function summaryTextForPromptInjection(
 export function resolveLorebookFromRecordsSync(
   chatId: number,
   maxChars: number,
-  opts?: { excludeTurnStartGte?: number; storedRecentSummary?: string }
+  opts?: { excludeTurnStartGte?: number; excludeTurnEndGte?: number; storedRecentSummary?: string }
 ): { text: string; overBudget: boolean } {
   const resolved = resolveGlobalCurrentMemory(chatId, maxChars, opts);
   return { text: resolved.text, overBudget: resolved.overBudget };

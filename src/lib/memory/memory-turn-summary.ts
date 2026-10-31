@@ -331,12 +331,21 @@ export function resolveManualGlobalMediumDelivery(
  */
 export function listPromptInjectibleMemoryRecords(
   chatId: number,
-  opts?: { excludeTurnStartGte?: number; excludeAssistantMessageId?: number | null }
+  opts?: {
+    excludeTurnStartGte?: number;
+    /** Drop records that overlap this end boundary (inclusive). */
+    excludeTurnEndGte?: number;
+    excludeAssistantMessageId?: number | null;
+  }
 ): MemoryRecordView[] {
   let records = listMemoryRecordsForChat(chatId).filter(isPromptInjectibleMemoryRecord);
   const cutoff = opts?.excludeTurnStartGte;
   if (cutoff != null && cutoff > 0) {
     records = records.filter((record) => record.turnStart < cutoff);
+  }
+  const endCutoff = opts?.excludeTurnEndGte;
+  if (endCutoff != null && endCutoff > 0) {
+    records = records.filter((record) => record.turnEnd < endCutoff);
   }
   if (opts?.excludeAssistantMessageId != null) {
     records = records.filter(
@@ -349,7 +358,7 @@ export function listPromptInjectibleMemoryRecords(
 /** Injected lorebook — main_canon + active branch_canon + preference only. */
 export function rebuildLorebookFromRecords(
   chatId: number,
-  opts?: { excludeTurnStartGte?: number }
+  opts?: { excludeTurnStartGte?: number; excludeTurnEndGte?: number }
 ): string {
   return listPromptInjectibleMemoryRecords(chatId, opts)
     .map((record) => {

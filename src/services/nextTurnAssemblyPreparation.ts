@@ -731,6 +731,8 @@ export function assembleNextTurnContextBuildInput(input: {
   userNote?: string | null;
   longTermMemory?: string | null;
   mediumTermMemoryBlock?: string | null;
+  recentDetailMemoryBlock?: string | null;
+  pastSearchMemoryBlock?: string | null;
   archiveMemory?: string | null;
   history: NextTurnHistoryPreparation;
   shortTermHistory?: ChatMsg[];
@@ -785,6 +787,8 @@ export function assembleNextTurnContextBuildInput(input: {
     userNote: input.userNote,
     longTermMemory: input.longTermMemory ?? "",
     mediumTermMemoryBlock: input.mediumTermMemoryBlock ?? "",
+    recentDetailMemoryBlock: input.recentDetailMemoryBlock ?? "",
+    pastSearchMemoryBlock: input.pastSearchMemoryBlock ?? "",
     archiveMemory: input.archiveMemory ?? "",
     shortTermHistory: input.shortTermHistory ?? input.history.promptHistory,
     currentUserMessage: input.currentUserMessage,
@@ -870,7 +874,7 @@ export async function assemblePersistedNextTurnInputs(opts: {
           trimmedHistoryForLorebook
         ),
       })
-    : { text: "", mediumTermText: "", archiveText: "" };
+    : { text: "", mediumTermText: "", archiveText: "", recentDetailText: "", pastSearchText: "" };
 
   const providerHistory = gemini38ProviderHistoryFromCanonical({
     modelId: opts.modelId,
@@ -911,6 +915,8 @@ export async function assemblePersistedNextTurnInputs(opts: {
     userNote: opts.source.userNotePrompt,
     longTermMemory: memoryInjection.text,
     mediumTermMemoryBlock: memoryInjection.mediumTermText,
+    recentDetailMemoryBlock: memoryInjection.recentDetailText,
+    pastSearchMemoryBlock: memoryInjection.pastSearchText,
     archiveMemory: memoryInjection.archiveText,
     history,
     shortTermHistory: providerHistory,

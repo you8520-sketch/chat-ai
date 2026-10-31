@@ -1,6 +1,11 @@
 # B63 R1 — 다음 유료 비교 설계안 (실행 금지)
 
-이 문서는 설계만 제안한다. R1에서는 유료 호출을 0회 수행한다.
+이 문서는 설계만 제안한다. R1/R1b에서는 유료 호출을 0회 수행한다.
+
+> **R1b note:** 아래 38-call stratified design은 실행되지 않았고 승인된 설계도 아니다.
+> R1a review에 따라 implicit prompt에는 turn number/정답/사건명을 넣지 않는다.
+> “+2 answers / +15% input”은 제안 기준이지 통계적 결론이 아니다. R1b의 최소 5문항
+> 제안은 `implementation.md`의 “Minimal paid questions proposed” 절을 사용한다.
 
 ## 1. 층화
 
