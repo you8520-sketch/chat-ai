@@ -369,7 +369,13 @@ function tokenMatches(token: string, pool: Set<string>): boolean {
 }
 
 function compactGenreTag(value: string): string {
-  return value.replace(/[\s·]+/g, "").trim();
+  // The selected genre's own name may be written with a space, a slash or the
+  // "-극" suffix ("현대 일상", "현대/일상", "현대 일상극"). Normalise inside this
+  // per-genre owner only; no other genre is affected.
+  return value
+    .replace(/[\s·/]+/g, "")
+    .replace(/극$/u, "")
+    .trim();
 }
 
 function isSelectedGenreExpression(tag: string, genre: string | undefined): boolean {
