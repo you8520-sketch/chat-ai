@@ -8,7 +8,7 @@ real-fixture final messages, and integrity manifests are in the private evidence
 
 - https://github.com/you8520-sketch/hav-rp-evidence-private/pull/52
 - Path: `cases/elin/results/B63-simple-memory-window/R1/`
-- Evidence head at R1 submission: `4be756b896486206afbf48b4b271768a561d3f2b`
+- Evidence PR #52 contains the current R1/R1b head.
 - Original evidence head reviewed by GPT: `2bb5a7fbba1636f604bed7c80ed1add93bc65e1e`
 
 ## What was wrong
