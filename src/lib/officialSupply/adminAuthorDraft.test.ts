@@ -1253,3 +1253,80 @@ describe("G5-3M-1 admin preview failure stage mapping", () => {
     assert.equal(wire.includes("lorebook"), false);
   });
 });
+
+describe("G6-2A adult authoring mode", () => {
+  const generalSelection = { ...autoHorrorDry };
+
+  it("parses adult strictly, defaulting to general when absent", () => {
+    const base = {
+      genre: "공포/추리",
+      tone: "auto",
+      humor: "auto",
+      pacing: "auto",
+      nameWordplay: "auto",
+      gender: "female",
+      castIntent: "",
+    };
+    const missing = parseAdminAuthorSelection(base);
+    assert.equal(missing.ok, true);
+    if (missing.ok) assert.equal(missing.selection.adult, false);
+
+    const yes = parseAdminAuthorSelection({ ...base, adult: true });
+    assert.equal(yes.ok, true);
+    if (yes.ok) assert.equal(yes.selection.adult, true);
+
+    const no = parseAdminAuthorSelection({ ...base, adult: false });
+    assert.equal(no.ok, true);
+    if (no.ok) assert.equal(no.selection.adult, false);
+
+    for (const bad of ["true", 1, null]) {
+      assert.equal(parseAdminAuthorSelection({ ...base, adult: bad }).ok, false, String(bad));
+    }
+  });
+
+  it("refuses an adult request without creator permission before any provider call", async () => {
+    let calls = 0;
+    const transport: OfficialAuthorTransport = {
+      label: "never-called",
+      async completeJson() {
+        calls += 1;
+        throw new Error("provider must not be called");
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: { ...generalSelection, adult: true },
+      transport,
+    });
+    assert.equal(preview.ok, false);
+    if (!preview.ok) assert.match(preview.error, /권한/);
+    assert.equal(calls, 0);
+  });
+
+  it("checks the brief against the requested mode instead of rejecting adultCandidate", async () => {
+    const queue = [
+      "14-g5-horror-dry-world_bible.json",
+      "15-g5-horror-dry-world_bible.json",
+      "16-g5-horror-dry-world_bible.json",
+      "17-g5-horror-dry-world_bible.json",
+    ].map((file) => readJson<{ text: string }>(path.join(PROVIDER, file)).text);
+    const transport: OfficialAuthorTransport = {
+      label: "adult-mode-mismatch",
+      async completeJson(input) {
+        if (input.task === "character_experience") return fixtureExperienceCompletion();
+        const text = queue.shift();
+        if (!text) throw new Error("fixture transport exhausted");
+        return { text, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+      },
+    };
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      adminUser: { id: ADMIN.id, email: "admin@example.com", is_adult: 1, is_admin: 1 } as never,
+      selection: { ...generalSelection, adult: true },
+      transport,
+    });
+    assert.equal(preview.ok, false);
+    const wire = JSON.stringify(preview);
+    assert.match(wire, /world_portfolio_adult|adultCandidate/);
+  });
+});
