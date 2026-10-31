@@ -108,7 +108,7 @@ export type PersistEpisodicMemoryFactsInput = {
   replaceSourceTurn?: boolean;
   /** Summary-seal batch: replace only rows from the same extractor batch metadata. */
   replaceSummarySealBatch?: { batchStart: number; batchEnd: number };
-  /** Per-turn fact cap override (artifact role chain uses 5; default 3). */
+  /** Per-turn fact cap override (artifact role chain uses 7; default 3). */
   maxFacts?: number;
 };
 
@@ -1338,7 +1338,7 @@ export type ReconcileEpisodicMemoryFactsInput = {
   metadata?: Record<string, unknown>;
   userPersona?: string | null;
   evidenceBinding?: EpisodicEvidenceBinding;
-  /** Per-turn fact cap override (artifact role chain uses 5; default 3). */
+  /** Per-turn fact cap override (artifact role chain uses 7; default 3). */
   maxFacts?: number;
 };
 

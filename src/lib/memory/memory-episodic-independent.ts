@@ -157,7 +157,12 @@ export async function startIndependentEpisodicExtraction(
     return {
       status: "extracted",
       episodic: run.transportOk
-        ? mergeArtifactRolesIntoEpisodic(episodic, run.parsed?.artifactRoles)
+        ? mergeArtifactRolesIntoEpisodic(
+            episodic,
+            run.parsed?.artifactRoles,
+            input.assistantProse,
+            [input.charName, input.personaName]
+          )
         : null,
       boundary,
     };

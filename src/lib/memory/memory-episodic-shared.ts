@@ -271,7 +271,7 @@ export type ReconcileSharedEpisodicFactsInput = {
   generationScope?: AssistantGenerationScope;
   /** Canonical per-turn content route of the source turn; stamped into fact metadata. */
   contentRoute?: Route;
-  /** Override the per-turn fact cap (artifact-role chain uses 5; default 3). */
+  /** Override the per-turn fact cap (artifact-role chain uses 7; default 3). */
   maxFacts?: number;
 };
 
