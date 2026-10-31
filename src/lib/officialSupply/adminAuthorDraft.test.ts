@@ -1253,3 +1253,94 @@ describe("G5-3M-1 admin preview failure stage mapping", () => {
     assert.equal(wire.includes("lorebook"), false);
   });
 });
+
+describe("G5-3Z preview execution with provider fixtures", () => {
+  const ROLE_PREMISE = "당신은 이 사건의 의뢰인입니다";
+
+  function fixtureText(file: string): string {
+    return readJson<{ text: string }>(path.join(PROVIDER, file)).text;
+  }
+  function withRpHook(text: string, rpHook: string): string {
+    const data = JSON.parse(text) as { portfolio?: Array<Record<string, unknown>> };
+    for (const brief of data.portfolio ?? []) brief.rpHook = rpHook;
+    return JSON.stringify(data);
+  }
+  function recordingFixtureTransport(texts: readonly string[]) {
+    const queue = [...texts];
+    const tasks: string[] = [];
+    const prompts: string[] = [];
+    let calls = 0;
+    const transport: OfficialAuthorTransport = {
+      label: "g5-3z-recording",
+      async completeJson(input) {
+        calls += 1;
+        tasks.push(input.task);
+        prompts.push(input.user ?? "");
+        if (input.task === "character_experience") return fixtureExperienceCompletion();
+        const text = queue.shift();
+        if (!text) throw new Error("fixture transport exhausted");
+        return { text, model: "fixture", inputTokens: 0, outputTokens: 0, costUsd: 0, providerRequestId: null };
+      },
+    };
+    return {
+      transport,
+      tasks,
+      prompts,
+      getCalls: () => calls,
+      nonExperiencePrompts: () => prompts.filter((_, i) => tasks[i] !== "character_experience"),
+    };
+  }
+
+  const PACK = [
+    "14-g5-horror-dry-world_bible.json",
+    "15-g5-horror-dry-world_bible.json",
+    "16-g5-horror-dry-world_bible.json",
+    "17-g5-horror-dry-world_bible.json",
+    "18-g5-horror-dry-character_bible_1.json",
+    "19-g5-horror-dry-character_bible_voice.json",
+    "20-g5-horror-dry-character_bible_bonds.json",
+  ];
+  const pack = () => PACK.map(fixtureText);
+
+  it("A: a clean FREE pack runs without an extra replan", async () => {
+    const rec = recordingFixtureTransport(pack());
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: autoHorrorDry,
+      transport: rec.transport,
+    });
+    assert.equal(preview.ok, true, preview.ok === false ? preview.error : "");
+    assert.equal(rec.getCalls(), 8);
+    assert.equal(rec.tasks.filter((t) => t === "character_bible_1").length, 1);
+  });
+
+  it("B: a FREE premise violation at the first gate reaches the replan feedback", async () => {
+    const texts = pack();
+    texts[2] = withRpHook(texts[2]!, ROLE_PREMISE);
+    const rec = recordingFixtureTransport(texts);
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: autoHorrorDry,
+      transport: rec.transport,
+    });
+    assert.equal(preview.ok, true, preview.ok === false ? preview.error : "");
+    assert.equal(rec.getCalls(), 8);
+    const replacementPrompt = rec.nonExperiencePrompts()[3] ?? "";
+    assert.match(replacementPrompt, /bible_user_rel_free_premise/);
+  });
+
+  it("C: a violating replacement stops once with no character calls", async () => {
+    const texts = pack();
+    texts[3] = withRpHook(texts[3]!, ROLE_PREMISE);
+    const rec = recordingFixtureTransport(texts.slice(0, 4));
+    const preview = await previewAdminOfficialCharacter({
+      adminUserId: ADMIN.id,
+      selection: autoHorrorDry,
+      transport: rec.transport,
+    });
+    assert.equal(preview.ok, false);
+    assert.equal(rec.getCalls(), 5);
+    assert.equal(rec.tasks.filter((t) => t === "character_bible_1").length, 0);
+    assert.match(JSON.stringify(preview), /bible_user_rel_free_premise|브리프 검수를 통과하지 못했습니다/);
+  });
+});
